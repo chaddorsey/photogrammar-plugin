@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
 import SidebarHeaderFacetButton from './SidebarHeaderFacetButton';
-import { getMakeLinkFunction } from '../../store/selectors';
+import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedTheme, selectedViz } = state;

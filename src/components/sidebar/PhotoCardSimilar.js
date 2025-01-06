@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
 import PhotoCard from './PhotoCard';
-import { getMakeLinkFunction } from '../../store/selectors';
+import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedMapView, dimensions } = state;

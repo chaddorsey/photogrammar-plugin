@@ -1,6 +1,7 @@
 import { connect } from 'react-redux';
 import Map from './Map.tsx';
-import { getMapParameters, getLinkUp, getMapFetchPath, getMakeLinkFunction } from '../store/selectors';
+import { getMapParameters, getLinkUp, getMapFetchPath } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedMapView, selectedCounty, selectedCity, selectedPhotographer, selectedState, timeRange, filterTerms } = state;

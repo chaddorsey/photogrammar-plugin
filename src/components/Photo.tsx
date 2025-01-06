@@ -8,7 +8,7 @@ import us from 'us';
 import SimilarPhotoCard from './sidebar/PhotoCardSimilar.js';
 import CloseButton from './buttons/Close';
 import ExpandButton from './buttons/Expand';
-import States from '../../data/svgs/states.json';
+import States from '../data/svgs/states.json';
 import './Photo.css';
 import { getCentroidForCounty } from '../helpers.js';
 import { PhotoMetadata } from '../index.d';
@@ -310,7 +310,7 @@ const Photo = (props: Props) => {
                             </Link>
                           );
                         }
-                        return (<div className='missing' />);
+                        return <div className='missing' key={`missing-${num}`} />;
                       })}
                     </div>
                   </React.Fragment>

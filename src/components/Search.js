@@ -1,8 +1,11 @@
 import { connect } from 'react-redux';
-import Search from './Search';
-import Themes from '../../data/themes.json';
-import { search, toggleSearch } from '../store/actions';
-import { getPhotographers, getStateSearchOptions, getCountiesOrCitiesOptions, getThemesSearchOptions } from '../store/selectors';
+import Search from './Search.tsx';
+import Themes from '../data/themes.json';
+import { toggleSearch } from '../store/actions/searchActions';
+import { getPhotographers } from '../store/selectors/photographersSelectors';
+import { getStateSearchOptions } from '../store/selectors/stateSearchSelectors';
+import { getThemesSearchOptions } from '../store/selectors/themesSearchSelectors';
+import { getCountiesOrCitiesOptions } from '../store/selectors';
 
 const mapStateToProps = state => {
   const countiesOrCitiesOptions = getCountiesOrCitiesOptions(state);
@@ -48,7 +51,6 @@ const mapStateToProps = state => {
 };
 
 const mapDispatchToProps = {
-  search,
   toggleSearch,
 };
 

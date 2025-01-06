@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import Centroids from '../data/centroids.json';
+import Centroids from './data/centroids.json';
 
 // convenience functions for dates
 export const monthNum = m => (m - 1) / 12;

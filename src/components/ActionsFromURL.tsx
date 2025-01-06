@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import Counties from '../../data/svgs/counties.json';
+import Counties from '../data/svgs/counties.json';
 import { parsePathname } from '../helpers';
 import { AppState, CityKey, NHGISJoinCode, StateAbbr, MapView, Viz, StateFacet, ParsedStateFacets } from '../index.d';
 

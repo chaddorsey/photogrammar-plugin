@@ -1,6 +1,7 @@
 import { connect } from 'react-redux';
 import Treemap from './Treemap.tsx';
-import { getThemesFetchPath, getThemesBackgroundPhotosQuery, getMakeLinkFunction } from '../store/selectors';
+import { getThemesFetchPath, getThemesBackgroundPhotosQuery } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedTheme, timeRange, filterTerms, dimensions } = state;

@@ -1,6 +1,6 @@
 import { connect } from 'react-redux';
-import ActionsFromURL from './ActionsFromURL';
 import { setState } from '../store/actions';
+import ActionsFromURL from './ActionsFromURL.tsx';
 
 const mapStateToProps = state => ({
   isLoading: state.isLoading,

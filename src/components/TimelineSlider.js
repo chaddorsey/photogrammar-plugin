@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
-import TimelineSlider from './TimelineSlider';
+import TimelineSlider from './TimelineSlider.tsx';
 import { setTimeRange } from '../store/actions';
-import { getMakeLinkFunction } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { timeRange, dimensions } = state;

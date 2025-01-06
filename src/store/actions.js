@@ -1,8 +1,8 @@
 import he from 'he';
 import A from './actionTypes';
-import Photographers from '../../data/photographers.json';
-import Counties from '../../data/svgs/counties.json';
-import Cities from '../../data/citiesCounts.json';
+import Photographers from '../data/photographers.json';
+import Counties from '../data/svgs/counties.json';
+import Cities from '../data/citiesCounts.json';
 import { makeWheres } from './selectors';
 
 const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';

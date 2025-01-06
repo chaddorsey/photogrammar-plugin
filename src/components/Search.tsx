@@ -9,7 +9,7 @@ import StateSelect from './search/StateSelect.js';
 import SearchSelect from './search/SearchSelect';
 import ThemesSelect from './search/ThemesSelect.js';
 import SearchButton from './search/SearchButton';
-import themes from '../../data/themes.json';
+import themes from '../data/themes.json';
 import CloseButton from './buttons/Close.tsx';
 import './Search.css';
 import { Props, Field, Option, Cities, DBCities, DBQueryResult } from './Search.d';

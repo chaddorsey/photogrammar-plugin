@@ -1,5 +1,5 @@
 import { connect } from 'react-redux';
-import SidebarHeader from './SidebarHeader';
+import SidebarHeader from './SidebarHeader.tsx';
 import { setPhotoOffset, toggleExpandedSidebar } from '../../store/actions';
 import { getSidebarPhotoCountQuery } from '../../store/selectors';
 

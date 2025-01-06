@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 import SidebarHeaderFacetButton from './SidebarHeaderFacetButton.js';
-import { clearFilterTerms } from '../../store/actions';
-import { getMakeLinkFunction } from '../../store/selectors';
+// import { clearFilterTerms } from '../../store/actions';
+import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 
 const mapStateToProps = state => {
@@ -14,7 +14,7 @@ const mapStateToProps = state => {
 };
 
 const mapDispatchToProps = {
-  onClick: clearFilterTerms,
+  //onClick: clearFilterTerms,
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(SidebarHeaderFacetButton);

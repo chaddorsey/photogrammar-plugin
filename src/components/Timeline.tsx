@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Async from "react-async";
 import * as d3 from 'd3';
-import Photographers from '../../data/photographers.json';
+import Photographers from '../data/photographers.json';
 import { monthNum, getTimeCode  } from '../helpers.js';
 import Row from './TimelineRow';
 import './Timeline.css';

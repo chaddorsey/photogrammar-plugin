@@ -1,6 +1,7 @@
 import { connect } from 'react-redux';
 import Timeline from './Timeline.tsx';
-import { getTimelineCellsFetchPath, getMakeLinkFunction } from '../store/selectors';
+import { getTimelineCellsFetchPath } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedPhotographer, timeRange, dimensions, selectedMapView, selectedViz } = state;

@@ -1,6 +1,7 @@
 import { connect } from 'react-redux';
 import SidebarHeaderFacetButton from './SidebarHeaderFacetButton';
-import { getSelectedCountyMetadata, getMakeLinkFunction } from '../../store/selectors';
+import { getSelectedCountyMetadata } from '../../store/selectors';
+import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedState, selectedCounty, selectedCity, selectedMapView } = state;

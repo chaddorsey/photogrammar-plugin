@@ -4,7 +4,6 @@ import OralHistoriesSearchForm from './OralHistoriesSearchForm';
 import MicrophoneButton from './buttons/Microphone';
 import './Photographers.css';
 import { PhotographerMetadata } from '../index.d';
-​
 const Photographers = ({ photographersStaff, photographersNonstaff }: { photographersStaff: PhotographerMetadata[]; photographersNonstaff: PhotographerMetadata[] }) => {
   return (
     <div
@@ -55,7 +54,7 @@ const Photographers = ({ photographersStaff, photographersNonstaff }: { photogra
               </figcaption>
             </figure>
           </Link>
-​
+
           <Link
             to='/photographers/CBBaldwin'
           >
@@ -90,9 +89,9 @@ const Photographers = ({ photographersStaff, photographersNonstaff }: { photogra
                 <figcaption>
                   {(photographer.interview && photographer.interview.files && photographer.interview.files.length > 0) && (
                     <MicrophoneButton />
-​
+
                   )}
-​
+
                   {`${photographer.firstname} ${photographer.lastname}`}
                   {(photographer.count) && (
                     <div
@@ -106,7 +105,7 @@ const Photographers = ({ photographersStaff, photographersNonstaff }: { photogra
             </Link>
           ))}
         </div>
-​
+
         <h3>Non-staff Photographers</h3>
         <div className='photographerCards'>
           {photographersNonstaff.map(photographer => (
@@ -124,7 +123,7 @@ const Photographers = ({ photographersStaff, photographersNonstaff }: { photogra
                   {(photographer.interview && photographer.interview.files && photographer.interview.files.length > 0) && (
                     <MicrophoneButton />
                   )}
-​
+
                   {`${photographer.firstname} ${photographer.lastname}`}
                   {(photographer.count) && (
                     <div
@@ -138,10 +137,10 @@ const Photographers = ({ photographersStaff, photographersNonstaff }: { photogra
             </Link>
           ))}
         </div>
-​
+
       </div>
     </div>
   );
 };
-​
+
 export default Photographers;

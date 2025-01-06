@@ -5,10 +5,10 @@ import { Link, useParams, useLocation } from "react-router-dom";
 import * as d3 from 'd3';
 // @ts-ignore
 import us from 'us';
-import Counties from '../../data/svgs/counties.json';
-import States from '../../data/svgs/states.json';
-import Cities from '../../data/citiesCounts.json';
-import Centroids from '../../data/centroids.json';
+import Counties from '../data/svgs/counties.json';
+import States from '../data/svgs/states.json';
+import Cities from '../data/citiesCounts.json';
+import Centroids from '../data/centroids.json';
 import County from './County';
 import State from './State';
 import City from './City';

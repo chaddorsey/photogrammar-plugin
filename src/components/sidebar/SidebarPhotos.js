@@ -1,7 +1,8 @@
 import { connect } from 'react-redux';
-import SidebarPhotos from './SidebarPhotos';
+// import SidebarPhotos from './SidebarPhotos';
 import { setPhotoOffset } from '../../store/actions';
 import { getSidebarPhotosQuery } from '../../store/selectors';
+import SidebarPhotos from './SidebarPhotos.tsx'; 
 
 const mapStateToProps = state => {
   const { 

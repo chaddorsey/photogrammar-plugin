@@ -1,7 +1,8 @@
 import { connect } from 'react-redux';
 import SidebarHeaderFacetButton from './SidebarHeaderFacetButton';
-import { getDateRangeString, getMakeLinkFunction } from '../../store/selectors';
+import { getDateRangeString } from '../../store/selectors';
 import { setTimeRange } from '../../store/actions';
+import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const makeLink = getMakeLinkFunction(state);

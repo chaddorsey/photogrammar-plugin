@@ -1,7 +1,8 @@
 import { connect } from 'react-redux';
 import Photo from './Photo.tsx';
 import { toggleLightbox } from '../store/actions';
-import { getPhotoFetchQueries, getMakeLinkFunction } from '../store/selectors';
+import { getPhotoFetchQueries } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { photoMetadataQuery, similarPhotosQuery } = getPhotoFetchQueries(state);

@@ -1,0 +1,1 @@
+export const getStateSearchOptions = (state) => state.stateOptions;

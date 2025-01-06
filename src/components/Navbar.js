@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 import Navbar from './Navbar.tsx';
 import { toggleSearch } from '../store/actions';
-import { getMakeLinkFunction } from '../store/selectors';
+import { getMakeLinkFunction } from '../utils/makeLinkHelper';
 
 const mapStateToProps = state =>  {
   const { selectedMapView, selectedViz } = state;

@@ -3,12 +3,12 @@ import * as d3 from 'd3';
 import US from 'us';
 import A from './actionTypes';
 import { getStateAbbr } from '../helpers.js';
-import Counties from '../../data/svgs/counties.json';
-import Photographers from '../../data/photographers.json';
-import PhotographersMetadata from '../../data/photographersMetadata.json';
-import StateCounts from '../../data/stateCounts.json';
-import Cities from '../../data/citiesCounts.json';
-import Centroids from '../../data/centroids.json';
+import Counties from '../data/svgs/counties.json';
+import Photographers from '../data/photographers.json';
+import PhotographersMetadata from '../data/photographersMetadata.json';
+import StateCounts from '../data/stateCounts.json';
+import Cities from '../data/citiesCounts.json';
+import Centroids from '../data/centroids.json';
 const stateabbrs = {"AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "DC": "District Of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "PR": "Puerto Rico", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VI": "Virgin Islands", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"};
 const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
     
