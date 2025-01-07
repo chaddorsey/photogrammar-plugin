@@ -8,6 +8,7 @@ import SidebarHeaderFilterButton from './SidebarHeaderFilterButton.js';
 import SidebarHeaderTimeRangeButton from './SidebarHeaderTimeRangeButton.js';
 import './SidebarHeader.css';
 import { Props, QueryStats } from './SidebarHeader.d';
+import { PhotoMetadata } from '../../index.d';
 
 const loadCounts = async ({ query }: { query: string; }) => {
   if (!query) {
@@ -21,6 +22,50 @@ const loadCounts = async ({ query }: { query: string; }) => {
   }
   return 1000;
 }
+
+const convertToCSV = (photos: PhotoMetadata[]) => {
+  const headers = [
+    'call_number',
+    'loc_item_link',
+    'photographer_name',
+    'year',
+    'month',
+    'state',
+    'county',
+    'city',
+    'caption',
+    'vanderbilt_level1',
+    'vanderbilt_level2',
+    'vanderbilt_level3'
+  ];
+
+  const headerLabels = [
+    'Call Number',
+    'LOC Item Link',
+    'Photographer',
+    'Year',
+    'Month',
+    'State',
+    'County',
+    'City',
+    'Caption',
+    'Theme Level 1',
+    'Theme Level 2',
+    'Theme Level 3'
+  ];
+
+  const headerRow = headerLabels.join(',');
+
+  const rows = photos.map(photo => {
+    return headers.map(header => {
+      const value = photo[header] || '';
+      const escaped = String(value).replace(/"/g, '""');
+      return escaped.includes(',') ? `"${escaped}"` : escaped;
+    }).join(',');
+  });
+
+  return [headerRow, ...rows].join('\n');
+};
 
 const SidebarPhotosHeader = (props: Props) => {
   const {
@@ -36,6 +81,61 @@ const SidebarPhotosHeader = (props: Props) => {
     isMobile,
     timeRange,
   } = props;
+
+  const handleExportCSV = async () => {
+    try {
+      console.log('Original query:', query);
+      
+      // Decode the URL, extract the SQL query part
+      const decodedUrl = decodeURIComponent(query);
+      const sqlQueryMatch = decodedUrl.match(/q=(.+)$/);
+      
+      if (!sqlQueryMatch) {
+        throw new Error('Could not parse SQL query');
+      }
+      
+      // Get the SQL query and modify it
+      let sqlQuery = sqlQueryMatch[1];
+      sqlQuery = sqlQuery.replace(/SELECT\s+count\(cartodb_id\)/i, 'SELECT *');
+      
+      // Construct the new URL
+      const baseUrl = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
+      const exportQuery = baseUrl + encodeURIComponent(sqlQuery);
+      
+      console.log('Export query:', exportQuery);
+      
+      const response = await fetch(exportQuery);
+      if (!response.ok) {
+        throw new Error('Failed to fetch photo data');
+      }
+      
+      const data = await response.json();
+      console.log('Fetched data:', data);
+      const photos = data.rows;
+      
+      if (!photos || photos.length === 0) {
+        console.warn('No photos found to export');
+        return;
+      }
+
+      const csv = convertToCSV(photos);
+      console.log('First row of CSV:', csv.split('\n')[1]); // Log first data row
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `photogrammar_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export photos. Please try again.');
+    }
+  };
 
   return (
     <Async
@@ -89,6 +189,13 @@ const SidebarPhotosHeader = (props: Props) => {
                 <div className='facets'>
                   <SidebarHeaderTimeRangeButton />
                 </div>
+                <button
+                  onClick={handleExportCSV}
+                  className="export-csv-button"
+                  title="Export displayed photos as CSV"
+                >
+                  Export CSV
+                </button>
                 <h4 className='counts'>
                   {`${from}-${to} of `}
                   <strong>
