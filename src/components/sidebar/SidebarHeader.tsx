@@ -25,8 +25,8 @@ const loadCounts = async ({ query }: { query: string; }) => {
 
 const convertToCSV = (photos: PhotoMetadata[]) => {
   const headers = [
-    'call_number',
     'loc_item_link',
+    'call_number',
     'photographer_name',
     'year',
     'month',
@@ -39,13 +39,12 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'vanderbilt_level3',
     'strip',
     'strip_position',
-    'strip_type',
-    'strip_id'
+    'strip_type'
   ];
 
   const headerLabels = [
+    'Photo ID',
     'Call Number',
-    'LOC Item Link',
     'Photographer',
     'Year',
     'Month',
@@ -58,8 +57,7 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'Theme Level 3',
     'Part of Strip',
     'Position in Strip',
-    'Strip Type',
-    'Strip ID'
+    'Strip Type'
   ];
 
   const headerRow = headerLabels.join(',');
