@@ -36,7 +36,11 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'caption',
     'vanderbilt_level1',
     'vanderbilt_level2',
-    'vanderbilt_level3'
+    'vanderbilt_level3',
+    'strip',
+    'strip_position',
+    'strip_type',
+    'strip_id'
   ];
 
   const headerLabels = [
@@ -51,14 +55,30 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'Caption',
     'Theme Level 1',
     'Theme Level 2',
-    'Theme Level 3'
+    'Theme Level 3',
+    'Part of Strip',
+    'Position in Strip',
+    'Strip Type',
+    'Strip ID'
   ];
 
   const headerRow = headerLabels.join(',');
 
   const rows = photos.map(photo => {
+    const photoWithStrip = {
+      ...photo,
+      strip: photo.photograph_type ? 'T' : 'F',
+      strip_position: photo.photograph_type ? 
+        (photo.photograph_type.length === 1 ? 
+          photo.photograph_type.toLowerCase().charCodeAt(0) - 96 : 
+          parseInt(photo.photograph_type.substring(1))) : 
+        '',
+      strip_type: photo.photograph_type || '',
+      strip_id: photo.photograph_type ? photo.call_number : ''
+    };
+
     return headers.map(header => {
-      const value = photo[header] || '';
+      const value = photoWithStrip[header] || '';
       const escaped = String(value).replace(/"/g, '""');
       return escaped.includes(',') ? `"${escaped}"` : escaped;
     }).join(',');
