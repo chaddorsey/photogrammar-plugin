@@ -10,6 +10,75 @@ import './SidebarHeader.css';
 import { Props, QueryStats } from './SidebarHeader.d';
 import { PhotoMetadata } from '../../index.d';
 
+// Add a type for UMAP data
+interface UMAPData {
+  [key: string]: {
+    umap_01: number;
+    umap_02: number;
+  };
+}
+
+// Function to load and parse UMAP data
+const loadUMAPData = async (): Promise<UMAPData> => {
+  try {
+    const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/umap_embd_fsa.csv');
+    if (!response.ok) {
+      throw new Error(`Failed to load UMAP data: ${response.status} ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+      console.error('Received HTML instead of CSV data');
+      throw new Error('Invalid UMAP data format received');
+    }
+    
+    const rows = text.trim().split('\n');
+    
+    if (rows.length < 2) {
+      throw new Error('UMAP data file is empty or malformed');
+    }
+    
+    const header = rows[0].split(',');
+    
+    if (header.length !== 4 || !header.includes('filename')) {
+      console.error('Unexpected CSV header:', header);
+      throw new Error('UMAP data file has unexpected format');
+    }
+    
+    const data = rows.slice(1).reduce((acc, row) => {
+      if (!row.trim()) return acc;
+      
+      const [filename, _, umap_01, umap_02] = row.split(',');
+      if (filename && umap_01 && umap_02) {
+        // Store the ID both with and without leading zeros
+        const cleanNum = filename.replace(/^0+/, '');
+        const paddedNum = cleanNum.padStart(10, '0');
+        
+        // Store under both formats to increase matching chances
+        acc[cleanNum] = {
+          umap_01: parseFloat(umap_01),
+          umap_02: parseFloat(umap_02)
+        };
+        acc[paddedNum] = {
+          umap_01: parseFloat(umap_01),
+          umap_02: parseFloat(umap_02)
+        };
+      }
+      return acc;
+    }, {} as UMAPData);
+
+    console.log('UMAP data loaded:', {
+      totalEntries: Object.keys(data).length,
+      sampleKeys: Object.keys(data).slice(0, 3)
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Error loading UMAP data:', error);
+    return {};
+  }
+};
+
 const loadCounts = async ({ query }: { query: string; }) => {
   if (!query) {
     return 1000;
@@ -23,10 +92,225 @@ const loadCounts = async ({ query }: { query: string; }) => {
   return 1000;
 }
 
-const convertToCSV = (photos: PhotoMetadata[]) => {
+// Add helper function to normalize IDs
+const normalizePhotoId = (id: string | undefined): string => {
+  if (!id) return '';
+  
+  // Handle both URL and direct ID formats
+  const urlMatch = id.match(/pictures\/item\/fsa(\d+)\/PP/i);
+  const directMatch = id.match(/^fsa(\d+)\/PP$/i);
+  
+  const match = urlMatch || directMatch;
+  if (!match) {
+    console.log('Failed to match ID format:', id);
+    return '';
+  }
+  
+  const numericId = match[1];
+  console.log('Photo ID extraction:', {
+    original: id,
+    numericId,
+    isURL: !!urlMatch,
+    isDirect: !!directMatch
+  });
+  
+  return numericId;
+};
+
+// Add debug logging function
+const debugLogId = (photoId: string, umapId: string, umapData: UMAPData) => {
+  // Try both clean and padded versions
+  const cleanNum = umapId.replace(/^0+/, '');
+  const paddedNum = cleanNum.padStart(10, '0');
+  
+  console.log('ID conversion debug:', {
+    photoId,
+    umapId,
+    cleanNum,
+    paddedNum,
+    hasUMAPDataClean: cleanNum in umapData,
+    hasUMAPDataPadded: paddedNum in umapData,
+    umapValuesClean: umapData[cleanNum],
+    umapValuesPadded: umapData[paddedNum],
+    availableKeys: Object.keys(umapData).slice(0, 5)
+  });
+};
+
+// Add interface for LOC API response
+interface LOCResponse {
+  results?: Array<{
+    control_number?: string;
+    call_number?: string;
+    title?: string;
+  }>;
+}
+
+// Function to extract item ID from LOC item link or FSA ID
+const extractItemId = (locItemLink: string): string | null => {
+  // Handle full LOC URL format
+  const urlMatch = locItemLink.match(/\/pictures\/item\/(\d+)/);
+  if (urlMatch) return urlMatch[1];
+  
+  // Handle FSA ID format (e.g., fsa1997007992/PP)
+  const fsaMatch = locItemLink.match(/fsa(\d+)\/PP/i);
+  if (fsaMatch) return fsaMatch[1];
+  
+  console.log('Could not extract item ID from:', locItemLink);
+  return null;
+};
+
+// Function to get control number from LOC API with retry logic
+const getControlNumber = async (locItemLink: string, retryCount = 0): Promise<string | null> => {
+  try {
+    // Ensure we have a full URL
+    if (!locItemLink.startsWith('http')) {
+      locItemLink = `https://www.loc.gov/pictures/item/${locItemLink}`;
+    }
+    
+    // Add JSON format parameter
+    const url = `${locItemLink}?fo=json`;
+    
+    // Exponential backoff delay, capped at 5 seconds
+    const delay = Math.min(250 * Math.pow(2, retryCount), 5000);
+    console.log('Fetching from LOC API:', { url, retryCount, delay });
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      },
+      mode: 'cors'
+    });
+    
+    if (response.status === 429 && retryCount < 3) {
+      console.log(`Rate limited, retry ${retryCount + 1} after ${delay}ms`);
+      return getControlNumber(locItemLink, retryCount + 1);
+    }
+    
+    if (!response.ok) {
+      throw new Error(`LOC API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('LOC API response:', data);
+    
+    if (data.item?.control_number) {
+      console.log('Found control number:', {
+        url,
+        retryCount,
+        controlNumber: data.item.control_number
+      });
+      return data.item.control_number;
+    }
+    
+    console.log('No control number found for item:', url);
+    return null;
+  } catch (error) {
+    if (retryCount < 3) {
+      console.log(`Error fetching control number, retry ${retryCount + 1}:`, error);
+      return getControlNumber(locItemLink, retryCount + 1);
+    }
+    console.error('Error fetching control number after retries:', error);
+    return null;
+  }
+};
+
+// Add interface for lookup table data
+interface LookupData {
+  [key: string]: string;  // Maps FSA ID to control number
+}
+
+// Function to load and parse lookup table
+const loadLookupTable = async (): Promise<LookupData> => {
+  try {
+    const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/fsa_lookup_table_cleaned-final.csv');
+    if (!response.ok) {
+      throw new Error(`Failed to load lookup table: ${response.status} ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+      console.error('Received HTML instead of CSV data');
+      throw new Error('Invalid lookup table format received');
+    }
+    
+    const rows = text.trim().split('\n');
+    if (rows.length < 2) {
+      throw new Error('Lookup table is empty or malformed');
+    }
+    
+    const data = rows.slice(1).reduce((acc, row) => {
+      if (!row.trim()) return acc;
+      
+      const [lcId, controlNumber] = row.split(',').map(p => p.trim());
+      if (lcId && controlNumber) {
+        acc[lcId] = controlNumber;
+      }
+      return acc;
+    }, {} as LookupData);
+
+    console.log('Lookup table loaded:', {
+      totalEntries: Object.keys(data).length,
+      sampleEntries: Object.entries(data).slice(0, 3)
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Error loading lookup table:', error);
+    return {};
+  }
+};
+
+// Function to construct LC ID from call number and strip info
+const constructLCID = (photo: PhotoMetadata): string => {
+  const { call_number, photograph_type } = photo;
+  if (!call_number) return '';
+  
+  // If no strip type, just return the call number
+  if (!photograph_type) return call_number;
+  
+  // For strip photos, append the strip position
+  // photograph_type can be a single letter (a-z) or M followed by a number
+  if (photograph_type.length === 1) {
+    // Convert a-z to A-Z for the suffix
+    return `${call_number}-${photograph_type.toUpperCase()}`;
+  } else if (photograph_type.startsWith('M')) {
+    // For M1, M2, etc., keep as is
+    return `${call_number}-${photograph_type}`;
+  }
+  
+  return call_number;
+};
+
+const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
+  // Load lookup table first
+  const lookupData = await loadLookupTable();
+  
+  // Debug first few photos
+  console.log('First few photos:', 
+    photos.slice(0, 3).map(p => {
+      const lcId = constructLCID(p);
+      return {
+        loc_item_link: p.loc_item_link,
+        call_number: p.call_number,
+        photograph_type: p.photograph_type,
+        constructed_lc_id: lcId,
+        control_number: lcId ? lookupData[lcId] : undefined,
+        raw_umap_data: lcId ? umapData[lookupData[lcId] || ''] : undefined
+      };
+    })
+  );
+
+  // Debug UMAP data
+  console.log('UMAP data sample:', {
+    numEntries: Object.keys(umapData).length,
+    firstFewKeys: Object.keys(umapData).slice(0, 3)
+  });
+
   const headers = [
     'loc_item_link',
     'call_number',
+    'control_number',
     'photographer_name',
     'year',
     'month',
@@ -39,12 +323,15 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'vanderbilt_level3',
     'strip',
     'strip_position',
-    'strip_type'
+    'strip_type',
+    'umap_01',
+    'umap_02'
   ];
 
   const headerLabels = [
     'Photo ID',
     'Call Number',
+    'Control Number',
     'Photographer',
     'Year',
     'Month',
@@ -57,14 +344,19 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
     'Theme Level 3',
     'Part of Strip',
     'Position in Strip',
-    'Strip Type'
+    'Strip Type',
+    'UMAP Dimension 1',
+    'UMAP Dimension 2'
   ];
 
   const headerRow = headerLabels.join(',');
 
   const rows = photos.map(photo => {
+    const lcId = constructLCID(photo);
+    const controlNumber = lcId ? lookupData[lcId] : '';
     const photoWithStrip = {
       ...photo,
+      control_number: controlNumber,
       strip: photo.photograph_type ? 'T' : 'F',
       strip_position: photo.photograph_type ? 
         (photo.photograph_type.length === 1 ? 
@@ -72,8 +364,25 @@ const convertToCSV = (photos: PhotoMetadata[]) => {
           parseInt(photo.photograph_type.substring(1))) : 
         '',
       strip_type: photo.photograph_type || '',
-      strip_id: photo.photograph_type ? photo.call_number : ''
+      umap_01: controlNumber ? (umapData[controlNumber]?.umap_01 || '') : '',
+      umap_02: controlNumber ? (umapData[controlNumber]?.umap_02 || '') : ''
     };
+
+    // Debug log first few items
+    if (photos.indexOf(photo) < 3) {
+      console.log('Photo mapping:', {
+        original_id: photo.loc_item_link,
+        call_number: photo.call_number,
+        photograph_type: photo.photograph_type,
+        constructed_lc_id: lcId,
+        control_number: controlNumber,
+        umap_values: controlNumber ? umapData[controlNumber] : undefined,
+        final_values: {
+          umap_01: photoWithStrip.umap_01,
+          umap_02: photoWithStrip.umap_02
+        }
+      });
+    }
 
     return headers.map(header => {
       const value = photoWithStrip[header] || '';
@@ -102,6 +411,9 @@ const SidebarPhotosHeader = (props: Props) => {
 
   const handleExportCSV = async () => {
     try {
+      // Load UMAP data first
+      const umapData = await loadUMAPData();
+      
       console.log('Original query:', query);
       
       // Decode the URL, extract the SQL query part
@@ -136,7 +448,7 @@ const SidebarPhotosHeader = (props: Props) => {
         return;
       }
 
-      const csv = convertToCSV(photos);
+      const csv = await convertToCSV(photos, umapData);
       console.log('First row of CSV:', csv.split('\n')[1]); // Log first data row
       
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
