@@ -282,26 +282,78 @@ const constructLCID = (photo: PhotoMetadata): string => {
   return call_number;
 };
 
+// Add interface for face detection data
+interface FaceData {
+  [key: string]: number;  // Maps control number to number of faces
+}
+
+// Function to load and parse face detection data
+const loadFaceData = async (): Promise<FaceData> => {
+  try {
+    const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/nn_face_fsa.csv');
+    if (!response.ok) {
+      throw new Error(`Failed to load face detection data: ${response.status} ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+      console.error('Received HTML instead of CSV data');
+      throw new Error('Invalid face detection data format received');
+    }
+    
+    const rows = text.trim().split('\n');
+    if (rows.length < 2) {
+      throw new Error('Face detection data file is empty or malformed');
+    }
+    
+    // Count occurrences of each control number
+    const faceCounts: FaceData = {};
+    rows.slice(1).forEach(row => {
+      if (!row.trim()) return;
+      
+      const [controlNumber] = row.split(',');
+      if (controlNumber) {
+        faceCounts[controlNumber] = (faceCounts[controlNumber] || 0) + 1;
+      }
+    });
+
+    console.log('Face detection data loaded:', {
+      totalPhotos: Object.keys(faceCounts).length,
+      sampleEntries: Object.entries(faceCounts).slice(0, 3)
+    });
+    
+    return faceCounts;
+  } catch (error) {
+    console.error('Error loading face detection data:', error);
+    return {};
+  }
+};
+
 const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
-  // Load lookup table first
-  const lookupData = await loadLookupTable();
+  // Load lookup table and face detection data
+  const [lookupData, faceData] = await Promise.all([
+    loadLookupTable(),
+    loadFaceData()
+  ]);
   
   // Debug first few photos
   console.log('First few photos:', 
     photos.slice(0, 3).map(p => {
       const lcId = constructLCID(p);
+      const controlNumber = lcId ? lookupData[lcId] : undefined;
       return {
         loc_item_link: p.loc_item_link,
         call_number: p.call_number,
         photograph_type: p.photograph_type,
         constructed_lc_id: lcId,
-        control_number: lcId ? lookupData[lcId] : undefined,
-        raw_umap_data: lcId ? umapData[lookupData[lcId] || ''] : undefined
+        control_number: controlNumber,
+        faces_detected: controlNumber ? (faceData[controlNumber] || 0) : 0,
+        raw_umap_data: controlNumber ? umapData[controlNumber] : undefined
       };
     })
   );
 
-  // Debug UMAP data
+  // Debug data samples
   console.log('UMAP data sample:', {
     numEntries: Object.keys(umapData).length,
     firstFewKeys: Object.keys(umapData).slice(0, 3)
@@ -324,6 +376,7 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
     'strip',
     'strip_position',
     'strip_type',
+    'faces_detected',
     'umap_01',
     'umap_02'
   ];
@@ -345,6 +398,7 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
     'Part of Strip',
     'Position in Strip',
     'Strip Type',
+    'Faces Detected',
     'UMAP Dimension 1',
     'UMAP Dimension 2'
   ];
@@ -364,6 +418,7 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
           parseInt(photo.photograph_type.substring(1))) : 
         '',
       strip_type: photo.photograph_type || '',
+      faces_detected: controlNumber ? (faceData[controlNumber] || 0) : 0,
       umap_01: controlNumber ? (umapData[controlNumber]?.umap_01 || '') : '',
       umap_02: controlNumber ? (umapData[controlNumber]?.umap_02 || '') : ''
     };
@@ -376,6 +431,7 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
         photograph_type: photo.photograph_type,
         constructed_lc_id: lcId,
         control_number: controlNumber,
+        faces_detected: photoWithStrip.faces_detected,
         umap_values: controlNumber ? umapData[controlNumber] : undefined,
         final_values: {
           umap_01: photoWithStrip.umap_01,
@@ -386,6 +442,10 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
 
     return headers.map(header => {
       const value = photoWithStrip[header] || '';
+      // Special handling for faces_detected to ensure '0' is output
+      if (header === 'faces_detected') {
+        return String(photoWithStrip.faces_detected);  // Use the actual face count
+      }
       const escaped = String(value).replace(/"/g, '""');
       return escaped.includes(',') ? `"${escaped}"` : escaped;
     }).join(',');
