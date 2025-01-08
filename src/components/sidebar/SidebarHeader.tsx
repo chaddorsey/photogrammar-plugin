@@ -282,13 +282,97 @@ const constructLCID = (photo: PhotoMetadata): string => {
   return call_number;
 };
 
-// Add interface for face detection data
-interface FaceData {
-  [key: string]: number;  // Maps control number to number of faces
+// Add interfaces for detection data
+interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-// Function to load and parse face detection data
-const loadFaceData = async (): Promise<FaceData> => {
+interface DetectionData {
+  [key: string]: {  // Maps control number to array of detections
+    boxes: BoundingBox[];
+    count: number;
+  };
+}
+
+interface PhotoDimensions {
+  [key: string]: {  // Maps control number to photo dimensions
+    width: number;
+    height: number;
+  };
+}
+
+// Function to load photo dimensions
+const loadPhotoDimensions = async (): Promise<PhotoDimensions> => {
+  try {
+    const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/nn_size_fsa.csv');
+    if (!response.ok) {
+      throw new Error(`Failed to load photo dimensions: ${response.status} ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+      throw new Error('Invalid photo dimensions format received');
+    }
+    
+    const rows = text.trim().split('\n');
+    if (rows.length < 2) {
+      throw new Error('Photo dimensions file is empty or malformed');
+    }
+    
+    // Get header row to find column indices
+    const headers = rows[0].toLowerCase().split(',').map(h => h.trim());
+    const filenameIdx = headers.indexOf('filename');
+    const widthIdx = headers.indexOf('width');
+    const heightIdx = headers.indexOf('height');
+    
+    if (filenameIdx === -1 || widthIdx === -1 || heightIdx === -1) {
+      console.error('Missing required columns in photo dimensions data:', headers);
+      throw new Error('Photo dimensions data has invalid format');
+    }
+    
+    const data: PhotoDimensions = {};
+    rows.slice(1).forEach(row => {
+      if (!row.trim()) return;
+      
+      const columns = row.split(',').map(v => v.trim());
+      const filename = columns[filenameIdx];
+      const width = Number(columns[widthIdx]);
+      const height = Number(columns[heightIdx]);
+      
+      // Extract control number from filename
+      const controlNumber = filename.split('.')[0];  // Remove file extension if present
+      
+      if (controlNumber && !isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
+        data[controlNumber] = {
+          width: Math.round(width),
+          height: Math.round(height)
+        };
+      }
+    });
+
+    // Debug log for the first few entries
+    const sampleEntries = Object.entries(data).slice(0, 3);
+    console.log('Photo dimensions loaded:', {
+      totalPhotos: Object.keys(data).length,
+      headers,
+      sampleEntries: sampleEntries.map(([key, value]) => ({
+        controlNumber: key,
+        dimensions: value
+      }))
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Error loading photo dimensions:', error);
+    return {};
+  }
+};
+
+// Function to load face detection data with bounding boxes
+const loadFaceDetectionData = async (): Promise<DetectionData> => {
   try {
     const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/nn_face_fsa.csv');
     if (!response.ok) {
@@ -297,7 +381,6 @@ const loadFaceData = async (): Promise<FaceData> => {
     
     const text = await response.text();
     if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
-      console.error('Received HTML instead of CSV data');
       throw new Error('Invalid face detection data format received');
     }
     
@@ -306,34 +389,283 @@ const loadFaceData = async (): Promise<FaceData> => {
       throw new Error('Face detection data file is empty or malformed');
     }
     
-    // Count occurrences of each control number
-    const faceCounts: FaceData = {};
+    // Get header row to find column indices
+    const headers = rows[0].toLowerCase().split(',').map(h => h.trim());
+    const filenameIdx = headers.indexOf('filename');
+    const topIdx = headers.indexOf('top');
+    const rightIdx = headers.indexOf('right');
+    const bottomIdx = headers.indexOf('bottom');
+    const leftIdx = headers.indexOf('left');
+    const confidenceIdx = headers.indexOf('confidence');
+    
+    if (filenameIdx === -1 || topIdx === -1 || rightIdx === -1 || bottomIdx === -1 || leftIdx === -1) {
+      console.error('Missing required columns in face detection data:', headers);
+      throw new Error('Face detection data has invalid format');
+    }
+    
+    const data: DetectionData = {};
     rows.slice(1).forEach(row => {
       if (!row.trim()) return;
       
-      const [controlNumber] = row.split(',');
-      if (controlNumber) {
-        faceCounts[controlNumber] = (faceCounts[controlNumber] || 0) + 1;
+      const columns = row.split(',').map(v => v.trim());
+      const filename = columns[filenameIdx];
+      const top = Number(columns[topIdx]);
+      const right = Number(columns[rightIdx]);
+      const bottom = Number(columns[bottomIdx]);
+      const left = Number(columns[leftIdx]);
+      
+      // Extract control number from filename
+      const controlNumber = filename.split('.')[0];  // Remove file extension if present
+      
+      if (controlNumber && !isNaN(top) && !isNaN(right) && !isNaN(bottom) && !isNaN(left)) {
+        if (!data[controlNumber]) {
+          data[controlNumber] = { boxes: [], count: 0 };
+        }
+        
+        // Calculate width and height from coordinates
+        const width = right - left;
+        const height = bottom - top;
+        
+        if (width > 0 && height > 0) {  // Only add valid boxes
+          data[controlNumber].boxes.push({
+            x: Math.round(left),
+            y: Math.round(top),
+            width: Math.round(width),
+            height: Math.round(height)
+          });
+          data[controlNumber].count++;
+        }
       }
     });
 
+    // Debug log for the first few entries
+    const sampleEntries = Object.entries(data).slice(0, 3);
     console.log('Face detection data loaded:', {
-      totalPhotos: Object.keys(faceCounts).length,
-      sampleEntries: Object.entries(faceCounts).slice(0, 3)
+      totalPhotos: Object.keys(data).length,
+      headers,
+      sampleEntries: sampleEntries.map(([key, value]) => ({
+        controlNumber: key,
+        count: value.count,
+        firstBox: value.boxes[0],
+        totalBoxes: value.boxes.length
+      }))
     });
     
-    return faceCounts;
+    return data;
   } catch (error) {
     console.error('Error loading face detection data:', error);
     return {};
   }
 };
 
+// Function to calculate total area ratio for a photo
+const calculateAreaRatio = (
+  detections: { boxes: BoundingBox[] } | undefined,
+  dimensions: { width: number; height: number; } | undefined
+): number => {
+  if (!detections?.boxes || !dimensions) {
+    console.log('Missing data for area calculation:', { 
+      hasDetections: !!detections,
+      hasBoxes: !!detections?.boxes,
+      hasDimensions: !!dimensions
+    });
+    return 0;
+  }
+  
+  const totalPhotoArea = dimensions.width * dimensions.height;
+  if (totalPhotoArea <= 0) {
+    console.log('Invalid photo area:', dimensions);
+    return 0;
+  }
+  
+  const totalDetectedArea = detections.boxes.reduce((sum, box) => {
+    const area = box.width * box.height;
+    if (area <= 0) {
+      console.log('Invalid box area:', box);
+    }
+    return sum + (area > 0 ? area : 0);
+  }, 0);
+  
+  const ratio = totalDetectedArea / totalPhotoArea;
+  
+  // Add debug logging
+  console.log('Area calculation:', {
+    photoWidth: dimensions.width,
+    photoHeight: dimensions.height,
+    totalPhotoArea,
+    totalDetectedArea,
+    ratio,
+    numBoxes: detections.boxes.length,
+    boxes: detections.boxes.slice(0, 3)  // Log first 3 boxes
+  });
+  
+  // Ensure ratio is between 0 and 1
+  return Math.min(Math.max(ratio, 0), 1);
+};
+
+// Add interface for panorama detection data
+interface PanoramaDetection {
+  area: number;
+  is_thing: boolean;
+  class: string;
+}
+
+interface PanoramaData {
+  [key: string]: {  // Maps control number to array of detections
+    detections: PanoramaDetection[];
+    totalArea: number;
+    thingsArea: number;
+    stuffArea: number;
+  };
+}
+
+// Function to load panorama detection data
+const loadPanoramaData = async (): Promise<PanoramaData> => {
+  try {
+    const response = await fetch('/panorama/photogrammar/data/addi-metadata/fsa/nn_pano_fsa.csv');
+    if (!response.ok) {
+      throw new Error(`Failed to load panorama data: ${response.status} ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    if (text.trim().toLowerCase().startsWith('<!doctype html>')) {
+      throw new Error('Invalid panorama data format received');
+    }
+    
+    const rows = text.trim().split('\n');
+    if (rows.length < 2) {
+      throw new Error('Panorama data file is empty or malformed');
+    }
+    
+    // Get header row to find column indices
+    const headers = rows[0].toLowerCase().split(',').map(h => h.trim());
+    const filenameIdx = headers.indexOf('filename');
+    const isThingIdx = headers.indexOf('is_thing');
+    const classIdx = headers.indexOf('class');
+    const areaIdx = headers.indexOf('area');
+    
+    if (filenameIdx === -1 || isThingIdx === -1 || classIdx === -1 || areaIdx === -1) {
+      console.error('Missing required columns in panorama data:', headers);
+      throw new Error('Panorama data has invalid format');
+    }
+    
+    const data: PanoramaData = {};
+    rows.slice(1).forEach(row => {
+      if (!row.trim()) return;
+      
+      const columns = row.split(',').map(v => v.trim());
+      const filename = columns[filenameIdx];
+      const isThing = columns[isThingIdx].toUpperCase() === 'TRUE';
+      const className = columns[classIdx];
+      const area = Number(columns[areaIdx]);
+      
+      // Extract control number from filename
+      const controlNumber = filename.split('.')[0];  // Remove file extension if present
+      
+      if (controlNumber && !isNaN(area) && area > 0) {
+        if (!data[controlNumber]) {
+          data[controlNumber] = {
+            detections: [],
+            totalArea: 0,
+            thingsArea: 0,
+            stuffArea: 0
+          };
+        }
+        
+        data[controlNumber].detections.push({
+          area,
+          is_thing: isThing,
+          class: className
+        });
+        
+        data[controlNumber].totalArea += area;
+        if (isThing) {
+          data[controlNumber].thingsArea += area;
+        } else {
+          data[controlNumber].stuffArea += area;
+        }
+      }
+    });
+
+    // Debug log for the first few entries
+    const sampleEntries = Object.entries(data).slice(0, 3);
+    console.log('Panorama data loaded:', {
+      totalPhotos: Object.keys(data).length,
+      headers,
+      sampleEntries: sampleEntries.map(([key, value]) => ({
+        controlNumber: key,
+        totalDetections: value.detections.length,
+        totalArea: value.totalArea,
+        thingsArea: value.thingsArea,
+        stuffArea: value.stuffArea,
+        sampleClasses: value.detections.slice(0, 3).map(d => d.class)
+      }))
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Error loading panorama data:', error);
+    return {};
+  }
+};
+
+// Function to calculate panorama ratios
+const calculatePanoramaRatios = (
+  panoData: { totalArea: number; thingsArea: number; stuffArea: number; } | undefined,
+  dimensions: { width: number; height: number; } | undefined
+): { det_region_ratio: number; det_stuff_ratio: number; det_things_ratio: number; } => {
+  if (!panoData || !dimensions) {
+    return {
+      det_region_ratio: 0,
+      det_stuff_ratio: 0,
+      det_things_ratio: 0
+    };
+  }
+  
+  const totalPhotoArea = dimensions.width * dimensions.height;
+  if (totalPhotoArea <= 0) {
+    console.log('Invalid photo area:', dimensions);
+    return {
+      det_region_ratio: 0,
+      det_stuff_ratio: 0,
+      det_things_ratio: 0
+    };
+  }
+  
+  // Calculate ratios
+  const det_region_ratio = Math.min(panoData.totalArea / totalPhotoArea, 1);
+  const det_stuff_ratio = Math.min(panoData.stuffArea / totalPhotoArea, 1);
+  const det_things_ratio = Math.min(panoData.thingsArea / totalPhotoArea, 1);
+  
+  // Add debug logging
+  console.log('Panorama ratios calculation:', {
+    photoWidth: dimensions.width,
+    photoHeight: dimensions.height,
+    totalPhotoArea,
+    totalDetectedArea: panoData.totalArea,
+    stuffArea: panoData.stuffArea,
+    thingsArea: panoData.thingsArea,
+    ratios: {
+      det_region_ratio,
+      det_stuff_ratio,
+      det_things_ratio
+    }
+  });
+  
+  return {
+    det_region_ratio,
+    det_stuff_ratio,
+    det_things_ratio
+  };
+};
+
 const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
-  // Load lookup table and face detection data
-  const [lookupData, faceData] = await Promise.all([
+  // Load all required data in parallel
+  const [lookupData, faceData, photoDimensions, panoData] = await Promise.all([
     loadLookupTable(),
-    loadFaceData()
+    loadFaceDetectionData(),
+    loadPhotoDimensions(),
+    loadPanoramaData()
   ]);
   
   // Debug first few photos
@@ -341,23 +673,25 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
     photos.slice(0, 3).map(p => {
       const lcId = constructLCID(p);
       const controlNumber = lcId ? lookupData[lcId] : undefined;
+      const dimensions = controlNumber ? photoDimensions[controlNumber] : undefined;
+      const faceDetections = controlNumber ? faceData[controlNumber] : undefined;
+      const panoDetections = controlNumber ? panoData[controlNumber] : undefined;
+      const panoRatios = calculatePanoramaRatios(panoDetections, dimensions);
+      
       return {
         loc_item_link: p.loc_item_link,
         call_number: p.call_number,
         photograph_type: p.photograph_type,
         constructed_lc_id: lcId,
         control_number: controlNumber,
-        faces_detected: controlNumber ? (faceData[controlNumber] || 0) : 0,
+        dimensions,
+        faces_detected: faceDetections?.count || 0,
+        total_face_area_ratio: calculateAreaRatio(faceDetections, dimensions),
+        ...panoRatios,
         raw_umap_data: controlNumber ? umapData[controlNumber] : undefined
       };
     })
   );
-
-  // Debug data samples
-  console.log('UMAP data sample:', {
-    numEntries: Object.keys(umapData).length,
-    firstFewKeys: Object.keys(umapData).slice(0, 3)
-  });
 
   const headers = [
     'loc_item_link',
@@ -377,6 +711,10 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
     'strip_position',
     'strip_type',
     'faces_detected',
+    'total_face_area_ratio',
+    'det_region_ratio',
+    'det_stuff_ratio',
+    'det_things_ratio',
     'umap_01',
     'umap_02'
   ];
@@ -399,6 +737,10 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
     'Position in Strip',
     'Strip Type',
     'Faces Detected',
+    'Total Face Area Ratio',
+    'Detected Region Ratio',
+    'Detected Stuff Ratio',
+    'Detected Things Ratio',
     'UMAP Dimension 1',
     'UMAP Dimension 2'
   ];
@@ -408,6 +750,11 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
   const rows = photos.map(photo => {
     const lcId = constructLCID(photo);
     const controlNumber = lcId ? lookupData[lcId] : '';
+    const dimensions = controlNumber ? photoDimensions[controlNumber] : undefined;
+    const faceDetections = controlNumber ? faceData[controlNumber] : undefined;
+    const panoDetections = controlNumber ? panoData[controlNumber] : undefined;
+    const panoRatios = calculatePanoramaRatios(panoDetections, dimensions);
+    
     const photoWithStrip = {
       ...photo,
       control_number: controlNumber,
@@ -418,7 +765,9 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
           parseInt(photo.photograph_type.substring(1))) : 
         '',
       strip_type: photo.photograph_type || '',
-      faces_detected: controlNumber ? (faceData[controlNumber] || 0) : 0,
+      faces_detected: faceDetections?.count || 0,
+      total_face_area_ratio: calculateAreaRatio(faceDetections, dimensions),
+      ...panoRatios,
       umap_01: controlNumber ? (umapData[controlNumber]?.umap_01 || '') : '',
       umap_02: controlNumber ? (umapData[controlNumber]?.umap_02 || '') : ''
     };
@@ -431,7 +780,10 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
         photograph_type: photo.photograph_type,
         constructed_lc_id: lcId,
         control_number: controlNumber,
+        dimensions,
         faces_detected: photoWithStrip.faces_detected,
+        total_face_area_ratio: photoWithStrip.total_face_area_ratio,
+        pano_ratios: panoRatios,
         umap_values: controlNumber ? umapData[controlNumber] : undefined,
         final_values: {
           umap_01: photoWithStrip.umap_01,
@@ -442,9 +794,15 @@ const convertToCSV = async (photos: PhotoMetadata[], umapData: UMAPData) => {
 
     return headers.map(header => {
       const value = photoWithStrip[header] || '';
-      // Special handling for faces_detected to ensure '0' is output
+      // Special handling for numeric fields to ensure proper formatting
       if (header === 'faces_detected') {
-        return String(photoWithStrip.faces_detected);  // Use the actual face count
+        return String(photoWithStrip.faces_detected);
+      }
+      if (header === 'total_face_area_ratio' || 
+          header === 'det_region_ratio' || 
+          header === 'det_stuff_ratio' || 
+          header === 'det_things_ratio') {
+        return photoWithStrip[header].toFixed(6);  // Format ratios to 6 decimal places
       }
       const escaped = String(value).replace(/"/g, '""');
       return escaped.includes(',') ? `"${escaped}"` : escaped;
