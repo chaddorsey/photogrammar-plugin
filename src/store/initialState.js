@@ -24,6 +24,7 @@ export default {
   isWelcomeOpen: false,
   pathname: '/maps',
   hash: null,
+  stateOptions: [],
   dimensions: {
     calculated: false,
     vizCanvas: {

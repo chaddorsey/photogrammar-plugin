@@ -1,1 +1,4 @@
-export const getStateSearchOptions = (state) => state.stateOptions;
+export const getStateSearchOptions = (state) => {
+  if (!state) return [];
+  return state.stateOptions || [];
+};
