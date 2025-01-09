@@ -12,7 +12,7 @@ const mapStateToProps = state => {
     label = `${selectedCity.substring(3)}`;
   }
   const makeLink = getMakeLinkFunction(state);
-  const link = makeLink([{ type: 'clear_county' }, { type: 'clear_city' }]);
+  const link = makeLink([{ type: selectedCounty ? 'clear_county' : 'clear_city' }]);
 
   return {
     label,

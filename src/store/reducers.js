@@ -3,43 +3,58 @@ import A from './actionTypes';
 import initialState from './initialState';
 import { SET_SIDEBAR_PHOTOS } from './actions';
 
-const selectedPhotographer = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedPhotographer : state
-);
+const selectedPhotographer = (state = initialState.selectedPhotographer, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.selectedPhotographer ?? state;
+  }
+  return state;
+};
 
-const selectedPhoto = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedPhoto : state
-);
+const selectedPhoto = (state = initialState.selectedPhoto, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.selectedPhoto ?? state;
+  }
+  return state;
+};
 
-const selectedCounty = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedCounty : state
-);
+const selectedCounty = (state = initialState.selectedCounty, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.selectedCounty ?? state;
+  }
+  return state;
+};
 
-const selectedCity = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedCity : state
-);
+const selectedCity = (state = initialState.selectedCity, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.selectedCity ?? state;
+  }
+  return state;
+};
 
-const selectedState = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedState : state
-);
+const selectedState = (state = initialState.selectedState, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.selectedState ?? state;
+  }
+  return state;
+};
 
-const selectedTheme = (state = initialState, action) => (
+const selectedTheme = (state = initialState.selectedTheme, action) => (
   (action.type === A.SET_STATE) ? action.payload.selectedTheme : state
 );
 
-const filterTerms = (state = initialState, action) => (
+const filterTerms = (state = initialState.filterTerms, action) => (
   (action.type === A.SET_STATE) ? action.payload.filterTerms : state
 );
 
-const selectedViz = (state = initialState, action) => (
+const selectedViz = (state = initialState.selectedViz, action) => (
   (action.type === A.SET_STATE) ? action.payload.selectedViz : state
 );
 
-const selectedMapView = (state = initialState, action) => (
+const selectedMapView = (state = initialState.selectedMapView, action) => (
   (action.type === A.SET_STATE) ? action.payload.selectedMapView : state
 );
 
-const sidebarPhotosOffset = (state = initialState, action) => {
+const sidebarPhotosOffset = (state = initialState.sidebarPhotosOffset, action) => {
   if (action.type === A.SET_STATE) {
     return Math.max(action.payload.sidebarPhotosOffset, 0);
   }
@@ -52,17 +67,17 @@ const sidebarPhotosOffset = (state = initialState, action) => {
   return state;
 };
 
-const timeRange = (state = initialState, action) => {
+const timeRange = (state = initialState.timeRange, action) => {
   if (action.type === A.SET_STATE) {
-    return action.payload.timeRange;
+    return action.payload.timeRange ?? state;
   }
   if (action.type === A.SET_TIME_RANGE) {
-    return action.payload;
+    return action.payload ?? state;
   }
   return state;
 };
 
-const pathname = (state = initialState, action) => (
+const pathname = (state = initialState.pathname, action) => (
   (action.type === A.SET_STATE) ? action.payload.pathname : state
 );
 

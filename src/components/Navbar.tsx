@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { Link, useLocation } from "react-router-dom";
-import { connect, useDispatch } from 'react-redux';
+import { connect, useDispatch, useSelector } from 'react-redux';
 import './Navbar.css';
 import { Props } from './Navbar.d';
 import { loadLookupTable } from '../utils/lookupTable';
@@ -29,19 +29,118 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
   const { pathname } = location;
   const [isLoadPhotosOpen, setIsLoadPhotosOpen] = useState(false);
   const dispatch = useDispatch();
+  const currentTheme = useSelector((state: any) => state.selectedTheme);
+  const currentState = useSelector((state: any) => state.selectedState);
+  const currentCounty = useSelector((state: any) => state.selectedCounty);
+  const currentCity = useSelector((state: any) => state.selectedCity);
 
   const toggleLoadPhotos = () => {
     setIsLoadPhotosOpen(!isLoadPhotosOpen);
   };
 
   const handleMapReset = () => {
+    // Check if we have a theme selected
+    const hasTheme = currentTheme && currentTheme !== 'root';
+    const hasGeographicFacets = currentState || currentCounty || currentCity;
+
+    // If we have a theme selected and no geographic facets, retain it
+    // If we have geographic facets, clear everything
     dispatch({
       type: 'SET_STATE',
       payload: {
-        sidebarPhotosQuery: null
+        selectedMapView: 'counties',
+        selectedCounty: null,
+        selectedCity: null,
+        selectedState: null,
+        selectedTheme: (hasTheme && !hasGeographicFacets) ? currentTheme : 'root',
+        filterTerms: [],
+        sidebarPhotosQuery: 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000',
+        pathname: (hasTheme && !hasGeographicFacets) ? `/themes/${currentTheme}` : '/maps',
+        hash: null,
+        timeRange: [193501, 194406],
+        selectedViz: (hasTheme && !hasGeographicFacets) ? 'themes' : 'map',
+        sidebarPhotosOffset: 0
       }
     });
-    dispatch(resetMapView());
+
+    // Fetch random photos
+    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + 
+      encodeURIComponent('SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000'))
+      .then(response => response.json())
+      .then(data => {
+        if (data.rows) {
+          dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+        }
+      })
+      .catch(error => console.error('Error fetching random photos:', error));
+  };
+
+  const handleCitiesClick = () => {
+    // If we have a theme selected, retain it
+    const hasTheme = currentTheme && currentTheme !== 'root';
+
+    // Always reset to zoomed out city view and clear geographic facets
+    dispatch({
+      type: 'SET_STATE',
+      payload: {
+        selectedMapView: 'cities',
+        selectedCounty: null,
+        selectedCity: null,
+        selectedState: null,
+        selectedTheme: hasTheme ? currentTheme : 'root',
+        filterTerms: [],
+        sidebarPhotosQuery: 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000',
+        pathname: hasTheme ? `/themes/${currentTheme}` : '/maps',
+        hash: null,
+        timeRange: [193501, 194406],
+        selectedViz: 'map',
+        sidebarPhotosOffset: 0
+      }
+    });
+
+    // Fetch random photos
+    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + 
+      encodeURIComponent('SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000'))
+      .then(response => response.json())
+      .then(data => {
+        if (data.rows) {
+          dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+        }
+      })
+      .catch(error => console.error('Error fetching random photos:', error));
+  };
+
+  const handleThemesClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default navigation
+    
+    // First, fetch random photos
+    const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + encodeURIComponent(query))
+      .then(response => response.json())
+      .then(data => {
+        if (data.rows) {
+          // Only after we have the photos, update the state
+          dispatch({
+            type: 'SET_STATE',
+            payload: {
+              selectedMapView: selectedMapView, // Preserve current map view type
+              selectedCounty: null,
+              selectedCity: null,
+              selectedState: null,
+              selectedTheme: 'root',
+              filterTerms: [],
+              sidebarPhotosQuery: query,
+              pathname: '/themes',
+              hash: null,
+              timeRange: [193501, 194406],
+              selectedViz: 'themes',
+              sidebarPhotosOffset: 0
+            }
+          });
+          dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+        }
+      })
+      .catch(error => console.error('Error fetching random photos:', error));
   };
 
   const handleExportCSV = async () => {
@@ -301,13 +400,13 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
           <Link to='/photographers'>Photographers</Link>
         </li>
         <li className={(selectedViz === 'themes' && pathname !== '/about') ? 'active themes' : 'themes'}>
-          <Link to={themesLink}>Themes</Link>
+          <Link to={themesLink} onClick={handleThemesClick}>Themes</Link>
         </li>
         <li className={(selectedViz === 'map' && selectedMapView === 'counties' && pathname !== '/about') ? 'active counties' : 'counties'}>
           <Link to={countiesLink} onClick={handleMapReset}>{`${(!isMobile) ? 'Map: ' : ''}Counties`}</Link>
         </li>
         <li className={(selectedViz === 'map' && selectedMapView === 'cities' && pathname !== '/about') ? 'active cities' : 'cities'}>
-          <Link to={citiesLink}>{`${(!isMobile) ? 'Map: ' : ''}Cities & Towns`}</Link>
+          <Link to={citiesLink} onClick={handleCitiesClick}>{`${(!isMobile) ? 'Map: ' : ''}Cities & Towns`}</Link>
         </li>
         {(isMobile) ? (
           <li className={(selectedViz === 'timeline') ? 'active timeline' : 'timeline'}>

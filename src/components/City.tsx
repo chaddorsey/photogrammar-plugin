@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import * as d3 from 'd3';
+import { select } from 'd3-selection';
+import { transition } from 'd3-transition';
+import type { Selection } from 'd3-selection';
+import type { Transition } from 'd3-transition';
 import { Link } from "react-router-dom";
 import { StyledCity } from '../index.d';
 
+// Initialize d3 transition
+transition();
+
 interface Props extends StyledCity {
   linkActive: boolean;
-  makeLink([]: { type: string, payload: string}[]): string;
+  makeLink(actions: { type: string, payload: string}[]): string;
   onCityHover(arg0: string): void;
   onCityUnhover(): void;
 }
@@ -24,8 +30,9 @@ const City = (props: Props) => {
     onCityUnhover,
   } = props;
 
-  const ref = useRef();
+  const ref = useRef<SVGCircleElement>(null);
   const isInitialMount = useRef(true);
+  const transitionRef = useRef<Transition<SVGCircleElement, unknown, null, undefined> | null>(null);
 
   const [r, setR] = useState(props.r);
   const [strokeWidth, setStrokeWidth] = useState(props.strokeWidth);
@@ -33,27 +40,53 @@ const City = (props: Props) => {
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-    } else {
-      if (props.r === 0) {
-        d3.select(ref.current)
-          .attr("r", props.r)
-          .style("stroke-width", props.strokeWidth)
-          .on("end", () => {
-            setR(props.r);
-            setStrokeWidth(props.strokeWidth)
-          });
-      } else {
-        d3.select(ref.current)
-          .transition()
-          .duration(1000)
-          .attr("r", props.r)
-          .style("stroke-width", props.strokeWidth)
-          .on("end", () => {
-            setR(props.r);
-            setStrokeWidth(props.strokeWidth)
-          });
+      return;
+    }
+
+    // Clean up previous transition if it exists
+    if (transitionRef.current) {
+      try {
+        transitionRef.current.on("end", null);
+      } catch (e) {
+        // Ignore errors from interrupted transitions
       }
     }
+
+    const element = ref.current && select<SVGCircleElement, unknown>(ref.current);
+    if (!element) return;
+
+    if (props.r === 0) {
+      element
+        .attr("r", props.r)
+        .style("stroke-width", props.strokeWidth);
+      setR(props.r);
+      setStrokeWidth(props.strokeWidth);
+    } else {
+      const newTransition = element
+        .transition()
+        .duration(1000)
+        .attr("r", props.r)
+        .style("stroke-width", props.strokeWidth);
+
+      newTransition.on("end", () => {
+        if (ref.current) { // Only update state if component is still mounted
+          setR(props.r);
+          setStrokeWidth(props.strokeWidth);
+        }
+      });
+
+      transitionRef.current = newTransition;
+    }
+
+    return () => {
+      if (transitionRef.current) {
+        try {
+          transitionRef.current.on("end", null);
+        } catch (e) {
+          // Ignore errors from interrupted transitions
+        }
+      }
+    };
   }, [props.r, props.strokeWidth]);
 
   const onHover = () => {

@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import Counties from '../data/svgs/counties.json';
 import { parsePathname } from '../helpers';
 import { AppState, CityKey, NHGISJoinCode, StateAbbr, MapView, Viz, StateFacet, ParsedStateFacets } from '../index.d';
+import { useSelector } from 'react-redux';
 
 const ActionsFromURL = ({ setState }: { setState: (obj: AppState) => void }): null => {
   const [pathLoaded, setPathLoaded] = useState('');
   const { pathname, hash } = useLocation();
+  const currentMapView = useSelector((state: any) => state.selectedMapView);
 
   type StateFacet = 'lightbox' | 'photo' | 'photographers' | 'ohsearch' | 'themes' | 'timeline' | 'city' | 'county' | 'state' | 'maps' | 'caption';
 
@@ -42,7 +44,11 @@ const ActionsFromURL = ({ setState }: { setState: (obj: AppState) => void }): nu
 
     // remove the basename from the pathPieces and build an object with state parameters
     const stateParams: ParsedStateFacets = parsePathname(pathname.replace(`${process.env.PUBLIC_URL}`, ''));
-    const selectedMapView: MapView = (stateParams.city || hash === '#mapview=cities') ? 'cities' : 'counties';
+    
+    // Preserve current view type when state is selected, otherwise use URL parameters
+    const selectedMapView: MapView = stateParams.state ? 
+      currentMapView : // Keep current view if state is selected
+      (stateParams.city || hash === '#mapview=cities') ? 'cities' : 'counties';
 
     const {
       ohsearch,

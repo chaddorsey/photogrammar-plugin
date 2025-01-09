@@ -42,6 +42,26 @@ export function initializeData() {
         payload: theDimensions,
       });
     }
+    
+    // Load initial random photos
+    const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+    try {
+      const response = await fetch(`https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      if (data.rows) {
+        dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });
+        dispatch({
+          type: A.SET_STATE,
+          payload: {
+            sidebarPhotosQuery: query,
+            sidebarPhotosOffset: 0
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading initial photos:', error);
+    }
+
     dispatch({
       type: A.INITIALIZED,
     });
@@ -50,28 +70,53 @@ export function initializeData() {
 
 export function setState(payload) {
   return async (dispatch, getState) => {
-    // if any selection has changed, reset the photooffset
     const { selectedPhotographer, selectedState, selectedCounty, selectedCity, selectedTheme,
         selectedViz, selectedMapView, filterTerms, timeRange, sidebarPhotosOffset } = getState();
 
-    const hasSelectionChanged = payload.selectedPhotographer !== selectedPhotographer
-      || payload.selectedState !== selectedState 
-      || payload.selectedCounty !== selectedCounty
-      || payload.selectedCity !== selectedCity 
-      || payload.selectedTheme !== selectedTheme
-      || payload.selectedViz !== selectedViz 
-      || payload.selectedMapView !== selectedMapView
-      || payload.timeRange[0] !== timeRange[0] 
-      || payload.timeRange[1] !== timeRange[1]
-      || payload.filterTerms.sort().join(',') !== filterTerms.sort().join(',');
+    // Ensure all required fields have valid values
+    const updatedPayload = {
+      ...payload,
+      selectedPhotographer: payload.selectedPhotographer ?? selectedPhotographer,
+      selectedState: payload.selectedState ?? selectedState,
+      selectedCounty: payload.selectedCounty ?? selectedCounty,
+      selectedCity: payload.selectedCity ?? selectedCity,
+      selectedTheme: payload.selectedTheme ?? selectedTheme,
+      selectedViz: payload.selectedViz ?? selectedViz,
+      selectedMapView: payload.selectedMapView ?? selectedMapView,
+      timeRange: payload.timeRange ?? timeRange,
+      filterTerms: payload.filterTerms ?? filterTerms,
+      sidebarPhotosOffset: payload.sidebarPhotosOffset ?? sidebarPhotosOffset
+    };
+
+    // Preserve view type when selecting a state
+    if (payload.selectedState && !payload.selectedMapView) {
+      // If we're selecting a state, keep the current map view type
+      updatedPayload.selectedMapView = selectedMapView;
+      
+      // Ensure county view doesn't get implicitly set
+      if (selectedMapView === 'cities') {
+        updatedPayload.selectedCounty = null;
+      }
+    }
+
+    const hasSelectionChanged = updatedPayload.selectedPhotographer !== selectedPhotographer
+      || updatedPayload.selectedState !== selectedState 
+      || updatedPayload.selectedCounty !== selectedCounty
+      || updatedPayload.selectedCity !== selectedCity 
+      || updatedPayload.selectedTheme !== selectedTheme
+      || updatedPayload.selectedViz !== selectedViz 
+      || updatedPayload.selectedMapView !== selectedMapView
+      || updatedPayload.timeRange[0] !== timeRange[0] 
+      || updatedPayload.timeRange[1] !== timeRange[1]
+      || updatedPayload.filterTerms.sort().join(',') !== filterTerms.sort().join(',');
 
     if (hasSelectionChanged) {
-      payload.sidebarPhotosOffset = 0;
+      updatedPayload.sidebarPhotosOffset = 0;
 
       // Construct SQL query based on the new selection
       const wheres = makeWheres({
         ...getState(),
-        ...payload
+        ...updatedPayload
       });
       const query = `${sqlQueryBase} WHERE ${wheres.join(' AND ')}`;
 
@@ -86,17 +131,18 @@ export function setState(payload) {
         if (data.rows && data.rows.length > 0) {
           // Update photos in store
           dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });
+          updatedPayload.sidebarPhotosQuery = query;
         }
       } catch (err) {
         console.error('Error fetching photos:', err);
       }
     } else {
-      payload.sidebarPhotosOffset = sidebarPhotosOffset;
+      updatedPayload.sidebarPhotosOffset = sidebarPhotosOffset;
     }
 
     dispatch({
       type: A.SET_STATE,
-      payload
+      payload: updatedPayload
     });
   }
 }
@@ -378,20 +424,43 @@ export const setSidebarPhotos = (photos) => ({
   payload: photos
 });
 
-export const resetMapView = () => {
-  return (dispatch) => {
+export const resetMapView = (targetView = 'counties') => {
+  return (dispatch, getState) => {
+    const { selectedTheme, selectedMapView } = getState();
+    const hasTheme = selectedTheme && selectedTheme !== 'root';
+    
+    // Ensure we maintain city view if that's what we're in
+    const finalView = targetView || (selectedMapView === 'cities' ? 'cities' : 'counties');
+    
     dispatch({
       type: A.SET_STATE,
       payload: {
-        selectedMapView: 'counties',
+        selectedMapView: finalView,
         selectedCounty: null,
         selectedCity: null,
         selectedState: null,
+        selectedTheme: hasTheme ? selectedTheme : 'root',
         filterTerms: [],
         sidebarPhotosOffset: 0,
-        timeRange: [193501, 194406]
+        timeRange: [193501, 194406],
+        sidebarPhotosQuery: 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000',
+        selectedPhotographer: null,
+        selectedViz: 'map',
+        selectedPhoto: null,
+        pathname: hasTheme ? `/themes/${selectedTheme}` : '/maps'
       }
     });
+
+    // Fetch random photos
+    const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+    fetch(`${cartoURLBase}${encodeURIComponent(query)}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.rows) {
+          dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });
+        }
+      })
+      .catch(error => console.error('Error fetching random photos:', error));
   };
 };
 
