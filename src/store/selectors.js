@@ -328,12 +328,14 @@ export const getMapFetchPath = createSelector(
 export const getThemesFetchPath = createSelector(
   [getSelectedPhotographer, getSelectedState, getSelectedMapView, getFilterTerms, makeWheres],
   (selectedPhotographer, selectedState, selectedMapView, filterTerms, wheres) => {
-    if (filterTerms.length === 0 && !selectedState) {
-      return (selectedPhotographer)
-        ? `${process.env.PUBLIC_URL}/data/photographers/${selectedPhotographer}.json`
-        : `${process.env.PUBLIC_URL}/data/photographers/all.json`;
-    }
-    return `${cartoURLBase}${encodeURIComponent(`select vanderbilt_level1, vanderbilt_level2, vanderbilt_level3, count(img_large_path) as total from photogrammar_photos where vanderbilt_level1 is not null and ${wheres.join(' and ')} group by vanderbilt_level1, vanderbilt_level2, vanderbilt_level3`)}`;
+    // Always fetch from database to ensure we have the latest data
+    const baseQuery = 'select vanderbilt_level1, vanderbilt_level2, vanderbilt_level3, count(img_large_path) as total from photogrammar_photos';
+    const whereClause = wheres.length > 0 
+      ? ` where vanderbilt_level1 is not null and ${wheres.join(' and ')}` 
+      : ' where vanderbilt_level1 is not null';
+    const groupBy = ' group by vanderbilt_level1, vanderbilt_level2, vanderbilt_level3';
+    
+    return `${cartoURLBase}${encodeURIComponent(baseQuery + whereClause + groupBy)}`;
   }
 );
 

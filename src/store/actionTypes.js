@@ -14,6 +14,7 @@ const actionTypes = {
   TOGGLE_LIGHTBOX: 'TOGGLE_LIGHTBOX',
   TOGGLE_SEARCH: 'TOGGLE_SEARCH',
   TOGGLE_VIZ: 'TOGGLE_VIZ',
+  SET_SIDEBAR_PHOTOS: 'SET_SIDEBAR_PHOTOS',
 };
 
 export default actionTypes;

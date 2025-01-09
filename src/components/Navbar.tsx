@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { Link, useLocation } from "react-router-dom";
-import { connect } from 'react-redux';
+import { connect, useDispatch } from 'react-redux';
 import './Navbar.css';
 import { Props } from './Navbar.d';
 import { loadLookupTable } from '../utils/lookupTable';
 import LoadPhotosModal from './LoadPhotosModal';
 import { getSidebarPhotosQuery } from '../store/selectors';
+import { resetMapView } from '../store/actions';
 import {
   loadUMAPData,
   loadFaceDetectionData,
@@ -26,9 +27,14 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
   const location = useLocation();
   const { pathname } = location;
   const [isLoadPhotosOpen, setIsLoadPhotosOpen] = useState(false);
+  const dispatch = useDispatch();
 
   const toggleLoadPhotos = () => {
     setIsLoadPhotosOpen(!isLoadPhotosOpen);
+  };
+
+  const handleMapReset = () => {
+    dispatch(resetMapView());
   };
 
   const handleExportCSV = async () => {
@@ -272,7 +278,7 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
           <Link to={themesLink}>Themes</Link>
         </li>
         <li className={(selectedViz === 'map' && selectedMapView === 'counties' && pathname !== '/about') ? 'active counties' : 'counties'}>
-          <Link to={countiesLink}>{`${(!isMobile) ? 'Map: ' : ''}Counties`}</Link>
+          <Link to={countiesLink} onClick={handleMapReset}>{`${(!isMobile) ? 'Map: ' : ''}Counties`}</Link>
         </li>
         <li className={(selectedViz === 'map' && selectedMapView === 'cities' && pathname !== '/about') ? 'active cities' : 'cities'}>
           <Link to={citiesLink}>{`${(!isMobile) ? 'Map: ' : ''}Cities & Towns`}</Link>

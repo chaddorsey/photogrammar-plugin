@@ -57,15 +57,15 @@ async function processResponse(response: Response): Promise<LookupData> {
     // control_number, call_number, loc_item_link
     const [controlNum, callNumber, locItemLink] = parts;
     
-    if (controlNum && callNumber && locItemLink) {
-      // Store mappings
-      data.controlToLoc[controlNum] = locItemLink;
-      data.locToControl[locItemLink] = controlNum;
-      data.controlToCall[controlNum] = callNumber;
-    } else {
-      console.warn(`Skipping malformed row ${index + 2}:`, {
-        row,
-        parts,
+    // Only store valid mappings and only warn about truly malformed rows
+    if (controlNum?.trim() && locItemLink?.trim()) {
+      data.controlToLoc[controlNum.trim()] = locItemLink.trim();
+      data.locToControl[locItemLink.trim()] = controlNum.trim();
+      if (callNumber?.trim()) {
+        data.controlToCall[controlNum.trim()] = callNumber.trim();
+      }
+    } else if (row.includes(',')) { // Only warn about rows that look like they should be valid
+      console.debug(`Skipping incomplete row ${index + 2}:`, {
         controlNum,
         callNumber,
         locItemLink

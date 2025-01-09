@@ -1,94 +1,95 @@
-import React, { useState } from 'react';
-import { usePhotos } from '../context/PhotoContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { loadLookupTable } from '../utils/lookupTable';
-import CloseButton from './buttons/Close';
-import './Search.css';
+import { setSidebarPhotos } from '../store/actions';
+import A from '../store/actionTypes';
+import './LoadPhotosModal.css';
 
-interface Props {
+const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
+
+interface LoadPhotosModalProps {
   toggleLoadPhotos: () => void;
 }
 
-const LoadPhotosModal: React.FC<Props> = ({ toggleLoadPhotos }) => {
+const LoadPhotosModal: React.FC<LoadPhotosModalProps> = ({ toggleLoadPhotos }) => {
   const [controlNumbers, setControlNumbers] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { setPhotos } = usePhotos();
+  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch();
+  const isMounted = useRef(true);
+  
+  // Get current state values we want to preserve
+  const selectedMapView = useSelector((state: any) => state.selectedMapView);
+  const selectedViz = useSelector((state: any) => state.selectedViz);
+
+  // Handle unmounting
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const handleLoadPhotos = async () => {
+    if (!controlNumbers.trim()) {
+      setError('Please enter at least one control number');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      
-      // Split and clean input
+      // Load lookup table
+      const lookupData = await loadLookupTable();
+      if (!isMounted.current) return;
+
+      console.log('Lookup table loaded:', {
+        totalEntries: Object.keys(lookupData.controlToLoc).length,
+        sampleEntries: Object.entries(lookupData.controlToLoc).slice(0, 3)
+      });
+
+      // Parse and validate control numbers
       const numbers = controlNumbers
         .split(/[\s,]+/)
         .map(n => n.trim())
         .filter(n => n);
 
       if (numbers.length === 0) {
-        alert('Please enter at least one control number');
-        return;
+        throw new Error('No valid control numbers found');
       }
 
-      console.log('Processing control numbers:', numbers);
-
-      // Load lookup table
-      let lookupData;
-      try {
-        lookupData = await loadLookupTable();
-        console.log('Lookup table loaded:', {
-          totalEntries: Object.keys(lookupData.controlToLoc).length,
-          sampleEntries: Object.entries(lookupData.controlToLoc).slice(0, 3)
-        });
-      } catch (error) {
-        console.error('Failed to load lookup table:', error);
-        alert('Failed to load photo lookup data. Please try again later.');
-        return;
-      }
-      
-      // Get loc_item_links from control numbers
-      const itemLinks = numbers
-        .map(controlNum => {
-          const link = lookupData.controlToLoc[controlNum];
-          if (!link) {
-            console.warn(`No matching loc_item_link found for control number: ${controlNum}`);
-          }
-          return link;
-        })
+      // Get loc_item_links for the control numbers
+      const locItemLinks = numbers
+        .map(num => lookupData.controlToLoc[num])
         .filter(link => link);
 
-      if (itemLinks.length === 0) {
-        alert('No matching photos found for the provided control numbers');
-        return;
+      if (locItemLinks.length === 0) {
+        throw new Error('No matching photos found in lookup table');
       }
 
-      console.log('Found loc_item_links:', itemLinks);
+      console.log('Found loc_item_links:', locItemLinks);
 
-      // Query using loc_item_links
-      const conditions = itemLinks.map(link => `'${link.replace(/'/g, "''")}'`).join(',');
-      const query = `
-        SELECT p.*, l.control_number 
-        FROM photogrammar_photos p 
-        LEFT JOIN (
-          SELECT unnest(ARRAY[${numbers.map(n => `'${n}'`).join(',')}]) as control_number
-        ) l ON true 
-        WHERE p.loc_item_link IN (${conditions})
-      `;
-      const url = `https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=${encodeURIComponent(query)}`;
+      // Construct SQL query
+      const query = `SELECT p.* FROM photogrammar_photos p WHERE p.loc_item_link IN ('${locItemLinks.join("','")}')`;
 
-      console.log('Querying database:', { query, url });
+      console.log('Querying database:', {
+        query,
+        url: cartoURLBase + encodeURIComponent(query)
+      });
 
-      const response = await fetch(url);
+      // Fetch photos from database
+      const response = await fetch(cartoURLBase + encodeURIComponent(query));
       if (!response.ok) {
-        console.error('Database query failed:', response.status, response.statusText);
-        throw new Error(`Failed to fetch photos: ${response.status} ${response.statusText}`);
+        throw new Error(`Database query failed: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
+      if (!isMounted.current) return;
+
       console.log('Raw database response:', data);
-      
+
       if (!data.rows || data.rows.length === 0) {
-        console.log('No photos found for loc_item_links:', itemLinks);
-        alert('No photos found in database for the provided control numbers');
-        return;
+        throw new Error('No photos found in database');
       }
 
       console.log('Retrieved photos:', {
@@ -96,62 +97,59 @@ const LoadPhotosModal: React.FC<Props> = ({ toggleLoadPhotos }) => {
         sample: data.rows[0]
       });
 
-      // Update photos in context/Redux
-      setPhotos(data.rows);
-      
-      // Clear input and close modal
-      setControlNumbers('');
-      toggleLoadPhotos();
+      if (isMounted.current) {
+        // Create a query that will fetch these specific photos
+        const locItemLinks = data.rows.map(p => p.loc_item_link);
+        const locItemLinksClause = `loc_item_link IN ('${locItemLinks.join("','")}')`;
+        
+        // Reset offset
+        dispatch({ type: A.SET_PHOTO_OFFSET, payload: 0 });
+        
+        // Set filter terms
+        dispatch({ type: A.SET_FILTER_TERMS, payload: [locItemLinksClause] });
+        
+        // Set time range
+        dispatch({ type: A.SET_TIME_RANGE, payload: [193501, 194406] });
 
-    } catch (error) {
-      console.error('Error loading photos:', error);
-      alert('Failed to load photos. Please try again.');
+        // Directly set the photos in the store
+        dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });
+        
+        toggleLoadPhotos(); // Close modal on success
+      }
+    } catch (err) {
+      if (isMounted.current) {
+        console.error('Error loading photos:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load photos');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
     }
   };
 
   return (
-    <div id='searchWrapper'>
-      <div id='advancedSearch'>
-        <div className='controls'>
-          <CloseButton
-            onClick={toggleLoadPhotos}
-            role='close'
-          />
-        </div>
-
+    <div className="modal-overlay" onClick={toggleLoadPhotos}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         <h2>Load Photos by Control Number</h2>
-
-        <div className='search-field'>
-          <textarea
-            value={controlNumbers}
-            onChange={(e) => setControlNumbers(e.target.value)}
-            placeholder="Enter control numbers (comma or space separated)"
-            rows={3}
-            style={{
-              width: '100%',
-              padding: '8px',
-              marginBottom: '15px',
-              borderRadius: '4px',
-              border: '1px solid #ccc'
-            }}
-          />
-          <button
-            onClick={handleLoadPhotos}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: '#297373',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
+        <p>Enter one or more control numbers, separated by commas or spaces:</p>
+        <textarea
+          value={controlNumbers}
+          onChange={e => setControlNumbers(e.target.value)}
+          placeholder="Enter control numbers..."
+          rows={5}
+          disabled={isLoading}
+        />
+        {error && <div className="error-message">{error}</div>}
+        <div className="modal-buttons">
+          <button 
+            onClick={handleLoadPhotos} 
+            disabled={isLoading || !controlNumbers.trim()}
           >
             {isLoading ? 'Loading...' : 'Load Photos'}
+          </button>
+          <button onClick={toggleLoadPhotos} disabled={isLoading}>
+            Cancel
           </button>
         </div>
       </div>

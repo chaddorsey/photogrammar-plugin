@@ -105,12 +105,10 @@ const vizOpen = (state = initialState, action) => (
 );
 
 const sidebarPhotos = (state = [], action) => {
-  switch (action.type) {
-    case SET_SIDEBAR_PHOTOS:
-      return action.payload;
-    default:
-      return state;
+  if (action.type === A.SET_SIDEBAR_PHOTOS) {
+    return action.payload;
   }
+  return state;
 };
 
 const combinedReducer = combineReducers({

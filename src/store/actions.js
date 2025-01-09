@@ -49,18 +49,50 @@ export function initializeData() {
 }
 
 export function setState(payload) {
-  return (dispatch, getState) => {
+  return async (dispatch, getState) => {
     // if any selection has changed, reset the photooffset
     const { selectedPhotographer, selectedState, selectedCounty, selectedCity, selectedTheme,
         selectedViz, selectedMapView, filterTerms, timeRange, sidebarPhotosOffset } = getState();
 
-    payload.sidebarPhotosOffset = (payload.selectedPhotographer !== selectedPhotographer
-      || payload.selectedState !== selectedState || payload.selectedCounty !== selectedCounty
-      || payload.selectedCity !== selectedCity || payload.selectedTheme !== selectedTheme
-      || payload.selectedViz !== selectedViz || payload.selectedMapView !== selectedMapView
-      || payload.timeRange[0] !== timeRange[0] || payload.timeRange[0] !== timeRange[0]
-      || payload.filterTerms.sort().join(',') !== filterTerms.sort().join(','))
-      ? 0 : sidebarPhotosOffset;
+    const hasSelectionChanged = payload.selectedPhotographer !== selectedPhotographer
+      || payload.selectedState !== selectedState 
+      || payload.selectedCounty !== selectedCounty
+      || payload.selectedCity !== selectedCity 
+      || payload.selectedTheme !== selectedTheme
+      || payload.selectedViz !== selectedViz 
+      || payload.selectedMapView !== selectedMapView
+      || payload.timeRange[0] !== timeRange[0] 
+      || payload.timeRange[1] !== timeRange[1]
+      || payload.filterTerms.sort().join(',') !== filterTerms.sort().join(',');
+
+    if (hasSelectionChanged) {
+      payload.sidebarPhotosOffset = 0;
+
+      // Construct SQL query based on the new selection
+      const wheres = makeWheres({
+        ...getState(),
+        ...payload
+      });
+      const query = `${sqlQueryBase} WHERE ${wheres.join(' AND ')}`;
+
+      try {
+        // Fetch photos from database
+        const response = await fetch(cartoURLBase + encodeURIComponent(query));
+        if (!response.ok) {
+          throw new Error(`Database query failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (data.rows && data.rows.length > 0) {
+          // Update photos in store
+          dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });
+        }
+      } catch (err) {
+        console.error('Error fetching photos:', err);
+      }
+    } else {
+      payload.sidebarPhotosOffset = sidebarPhotosOffset;
+    }
 
     dispatch({
       type: A.SET_STATE,
@@ -345,4 +377,21 @@ export const setSidebarPhotos = (photos) => ({
   type: SET_SIDEBAR_PHOTOS,
   payload: photos
 });
+
+export const resetMapView = () => {
+  return (dispatch) => {
+    dispatch({
+      type: A.SET_STATE,
+      payload: {
+        selectedMapView: 'counties',
+        selectedCounty: null,
+        selectedCity: null,
+        selectedState: null,
+        filterTerms: [],
+        sidebarPhotosOffset: 0,
+        timeRange: [193501, 194406]
+      }
+    });
+  };
+};
 
