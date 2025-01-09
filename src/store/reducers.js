@@ -1,6 +1,7 @@
 import { combineReducers } from 'redux';
 import A from './actionTypes';
 import initialState from './initialState';
+import { SET_SIDEBAR_PHOTOS } from './actions';
 
 const selectedPhotographer = (state = initialState, action) => (
   (action.type === A.SET_STATE) ? action.payload.selectedPhotographer : state
@@ -103,6 +104,15 @@ const vizOpen = (state = initialState, action) => (
   (action.type === A.TOGGLE_VIZ) ? !state : state
 );
 
+const sidebarPhotos = (state = [], action) => {
+  switch (action.type) {
+    case SET_SIDEBAR_PHOTOS:
+      return action.payload;
+    default:
+      return state;
+  }
+};
+
 const combinedReducer = combineReducers({
   selectedPhotographer,
   selectedPhoto,
@@ -124,6 +134,7 @@ const combinedReducer = combineReducers({
   expandedSidebar,
   searchOpen,
   vizOpen,
+  sidebarPhotos,
 });
 
 export default combinedReducer;

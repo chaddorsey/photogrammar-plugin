@@ -13,6 +13,7 @@ import themes from '../data/themes.json';
 import CloseButton from './buttons/Close.tsx';
 import './Search.css';
 import { Props, Field, Option, Cities, DBCities, DBQueryResult } from './Search.d';
+import { loadLookupTable } from '../utils/lookupTable';
 
 const Search = (props: Props) => {
   const {
@@ -38,48 +39,56 @@ const Search = (props: Props) => {
   const [photoCaptionOptions, setPhotoCaptionOptions] = useState([selectedPhotoCaption]);
   const [timeRangeOptions, setTimeRangeOptions] = useState(timeRange);
   const [linkTo, setLinkTo] = useState('/');
+  const [controlNumber, setControlNumber] = useState<string>('');
+  const [isSearchingById, setIsSearchingById] = useState<boolean>(false);
+  const [controlNumberWhereClause, setControlNumberWhereClause] = useState<string | null>(null);
+  const [validatedLocItemLinks, setValidatedLocItemLinks] = useState<string[]>([]);
 
   useEffect(() => {
     let path = '';
     
-    const photographer = photographerOption && photographerOption.value;
-    const state = stateOption && stateOption.value;
-    const cityOrCounty = countyOrCityOption && countyOrCityOption.value;
-    const theme = themeOption && themeOption.value;
-    const filterTerms = photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value;
-
-    if (cityOrCounty) {
-      path = `/${(selectedMapView === 'cities') ? 'city' : 'county'}/${cityOrCounty}`;
-    } else if (state) {
-      path = `/state/${state}`;
-    } else if (theme) {
-      path = `/themes/${theme}`
+    // If we have validated loc item links, use those for the path
+    if (validatedLocItemLinks.length > 0) {
+      path = `/photos/${validatedLocItemLinks.join(',')}`;
     } else {
-      path = `/maps`;
-    }
+      // Existing path construction logic
+      const photographer = photographerOption && photographerOption.value;
+      const state = stateOption && stateOption.value;
+      const cityOrCounty = countyOrCityOption && countyOrCityOption.value;
+      const theme = themeOption && themeOption.value;
+      const filterTerms = photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value;
 
-    if (theme && !path.includes('/themes/')) {
-      path = `${path}/themes/${theme}`
-    }
+      if (cityOrCounty) {
+        path = `/${(selectedMapView === 'cities') ? 'city' : 'county'}/${cityOrCounty}`;
+      } else if (state) {
+        path = `/state/${state}`;
+      } else if (theme) {
+        path = `/themes/${theme}`
+      } else {
+        path = `/maps`;
+      }
 
-    if (photographer) {
-      path = `${path}/photographers/${photographer}`;
-    }
+      if (theme && !path.includes('/themes/')) {
+        path = `${path}/themes/${theme}`
+      }
 
-    if (filterTerms) {
-      path = `${path}/caption/${filterTerms}`
-    }
+      if (photographer) {
+        path = `${path}/photographers/${photographer}`;
+      }
 
-    if (timeRangeOptions[0] !== 193501 || timeRangeOptions[1] !== 194406) {
-      path = `${path}/timeline/${timeRangeOptions.join('-')}`;
+      if (filterTerms) {
+        path = `${path}/caption/${filterTerms}`
+      }
+
+      if (timeRangeOptions[0] !== 193501 || timeRangeOptions[1] !== 194406) {
+        path = `${path}/timeline/${timeRangeOptions.join('-')}`;
+      }
     }
 
     if (path !== linkTo) {
       setLinkTo(path);
     }
-
-
-  })
+  }, [validatedLocItemLinks, photographerOption, stateOption, countyOrCityOption, themeOption, photoCaptionOptions, timeRangeOptions, selectedMapView, linkTo]);
 
   if (!open) {
     return null;
@@ -105,6 +114,24 @@ const Search = (props: Props) => {
     const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
     const wheres = [];
 
+    // Only apply control number filter for the final count/results query
+    if (validatedLocItemLinks.length > 0) {
+      const idList = validatedLocItemLinks.map(id => `'${id}'`).join(',');
+      wheres.push(`loc_item_link IN (${idList})`);
+      
+      // For control number searches, we only want to return the count or specific fields
+      if (field === 'count') {
+        return `${cartoURLBase}${encodeURIComponent(
+          `select count(loc_item_link) as numPhotos from photogrammar_photos where ${wheres.join(' and ')}`
+        )}`;
+      } else {
+        return `${cartoURLBase}${encodeURIComponent(
+          `select distinct ${field} as field from photogrammar_photos where ${wheres.join(' and ')}`
+        )}`;
+      }
+    }
+
+    // Existing filter logic for non-control number searches
     if (field !== 'photographer_name' && photographerOption && photographerOption.label) {
       wheres.push(`photographer_name = '${photographerOption.label}'`);
     }
@@ -201,6 +228,66 @@ const Search = (props: Props) => {
 
   const filterFunction = (rows: DBQueryResult[] ) => (d: Option) => rows.map(p => p.field).includes(d.label);
 
+  const handleControlNumberSearch = async () => {
+    try {
+      setIsSearchingById(true);
+      setValidatedLocItemLinks([]); // Clear previous results
+      
+      // Split and clean input
+      const ids = controlNumber
+        .split(/[\s,]+/)
+        .map(id => id.trim())
+        .filter(id => id.length > 0);
+        
+      if (ids.length === 0) {
+        alert('Please enter at least one control number');
+        return;
+      }
+      
+      // Load lookup table
+      const lookupData = await loadLookupTable();
+      
+      // Directly look up loc_item_links using control numbers
+      const locItemLinks = ids.map(id => {
+        const locId = lookupData.controlToLoc[id];
+        if (!locId) {
+          console.warn(`No matching loc_item_link found for control number: ${id}`);
+        }
+        return locId;
+      }).filter(id => id);
+      
+      if (locItemLinks.length === 0) {
+        alert('No matching photos found for the provided control numbers');
+        return;
+      }
+      
+      // Store the validated loc_item_links
+      setValidatedLocItemLinks(locItemLinks);
+      
+      // Clear other search options since we're using control number search
+      setPhotographerOption(null);
+      setStateOption(null);
+      setCountyOrCityOption(null);
+      setThemeOption(null);
+      setPhotoCaptionOptions([{ label: null, value: null }]);
+      
+    } catch (error) {
+      console.error('Error searching by control number:', error);
+      alert('Failed to search photos. Please try again.');
+    } finally {
+      setIsSearchingById(false);
+    }
+  };
+
+  // Clear control number search when other search options are used
+  useEffect(() => {
+    if (photographerOption || stateOption || countyOrCityOption || themeOption || 
+        (photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value)) {
+      setControlNumber('');
+      setValidatedLocItemLinks([]);
+    }
+  }, [photographerOption, stateOption, countyOrCityOption, themeOption, photoCaptionOptions]);
+
   return (
     <div
       id='searchWrapper'
@@ -216,6 +303,28 @@ const Search = (props: Props) => {
         </div>
 
         <h2>Search</h2>
+
+        <div className='search-field'>
+          <label>Search by Control Number</label>
+          <div className='control-number-search'>
+            <input
+              type="text"
+              value={controlNumber}
+              onChange={(e) => setControlNumber(e.target.value)}
+              placeholder="Enter control numbers (comma or space separated)"
+              className="control-number-input"
+            />
+            <button
+              onClick={handleControlNumberSearch}
+              disabled={isSearchingById}
+              className="control-number-search-button"
+            >
+              {isSearchingById ? 'Searching...' : 'Lookup'}
+            </button>
+          </div>
+        </div>
+
+        <div className='search-divider'>- OR -</div>
 
         <PhotographersSelect
           fetchPath={makeQuery('photographer_name')}

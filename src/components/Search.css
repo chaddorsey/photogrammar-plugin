@@ -6,12 +6,7 @@
   bottom: 0;
   background-color: rgba(25, 25, 25, 0.6);
   z-index: 1500;
-
-
-
 }
-
-
 
 #advancedSearch {
   position: fixed;
@@ -21,57 +16,132 @@
   height: min(calc(90vh - 40px), 650px);
   margin-top: max(calc(-45vh + 20px), -325px);
   margin-left: max(-300px, -45vw);
-  overflow-y: scroll;
+  overflow-y: auto;
   background-color: white;
   border-radius: 20px;
-  padding: 20px;
-
-  display: grid;
-  grid-template-columns: 120px auto 50px;
-  grid-column-gap: 20px;
-  grid-row-gap: 40px;
-  grid-auto-rows: 38px;
-}
-
-/* keep the top left cell empty */
-#advancedSearch::before {
-  grid-column: 1;
-  grid-row: 1;
-  content: '';
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 #advancedSearch .controls {
-  grid-column: 3 / span 1;
-  text-align: right;
-  grid-row: 1 / span 1;
+  position: absolute;
+  top: 20px;
+  right: 20px;
 }
 
 #advancedSearch h2 {
-  grid-column: 2 / span 1;
-  grid-row: 1 / span 1;
+  margin: 0 0 20px 0;
+  padding-right: 40px;
 }
 
 #advancedSearch h4 {
-  grid-column: 1 / span 1;
-  text-align: right;
-  margin: 0;
+  margin: 10px 0;
+  font-weight: 500;
 }
 
-#advancedSearch .dropdown {
-  grid-column: 2 / span 1;
+.search-field {
+  margin: 0 0 15px 0;
 }
 
-#advancedSearch button[role=close] {
-  padding: 0;
+.search-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
 }
 
-#advancedSearch a[role=submit], #advancedSearch > button[role=submit] {
-  grid-column: 2 / span 1;
-  
-  width: auto;
+.control-number-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
 }
 
-#advancedSearch a[role=submit] button[role=submit], #advancedSearch > button[role=submit]{
+.control-number-input {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 19px;
+  font-size: 14px;
+  background-color: #fafafa;
+  height: 38px;
+}
+
+.control-number-input:focus {
+  border-color: #297373;
+  background-color: white;
+  outline: none;
+  box-shadow: 0 0 0 2px #297373;
+}
+
+.control-number-search-button {
+  padding: 8px 16px;
+  background-color: #297373;
+  color: white;
+  border: none;
+  border-radius: 19px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  height: 38px;
+  min-width: 100px;
+}
+
+.control-number-search-button:hover:not(:disabled) {
+  background-color: #1e5555;
+}
+
+.control-number-search-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.search-divider {
+  text-align: center;
+  margin: 25px 0;
+  color: #666;
+  font-size: 14px;
+  position: relative;
+}
+
+.search-divider::before,
+.search-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 45%;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.search-divider::before {
+  left: 0;
+}
+
+.search-divider::after {
+  right: 0;
+}
+
+/* Select component styles */
+#advancedSearch .dropdown-container {
+  margin-bottom: 20px;
+}
+
+#advancedSearch .timelineSlider {
+  margin: 20px 0 30px 0;
+  padding: 0 10px;
+}
+
+#advancedSearch a[role=submit],
+#advancedSearch > button[role=submit] {
+  width: 100%;
+  margin-top: 20px;
+}
+
+#advancedSearch a[role=submit] button[role=submit],
+#advancedSearch > button[role=submit] {
   color: var(--map-counties-color);
   text-decoration: none;
   border-radius: 19px;
@@ -79,12 +149,16 @@
   width: 100%;
   height: 40px;
   background-color: var(--map-counties-lightened-color);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 #advancedSearch > button[role=submit]:disabled {
   background-color: #eee;
   color: #888;
   border: 2px solid #eee;
+  cursor: not-allowed;
 }
 
 .styled__control-is-focused {

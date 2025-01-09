@@ -1,0 +1,61 @@
+.batch-loader {
+  width: 100%;
+  padding: 15px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  position: relative;
+  z-index: 30;
+}
+
+.batch-loader textarea {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  position: relative;
+  z-index: 31;
+}
+
+.batch-loader textarea:focus {
+  border-color: #297373;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(41, 115, 115, 0.2);
+}
+
+.batch-loader-button {
+  width: 100%;
+  padding: 8px 16px;
+  background: #297373;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  position: relative;
+  z-index: 31;
+}
+
+.batch-loader-button:hover:not(:disabled) {
+  background: #1e5555;
+}
+
+.batch-loader-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Create a new stacking context */
+.batch-loader::after {
+  content: '';
+  display: block;
+  position: relative;
+  height: 20px;
+  background: #fff;
+  z-index: 29;
+} 

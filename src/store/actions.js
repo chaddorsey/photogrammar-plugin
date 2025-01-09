@@ -339,3 +339,10 @@ export const getStateAbbr = (name) => {
   return abbr;
 };
 
+export const SET_SIDEBAR_PHOTOS = 'SET_SIDEBAR_PHOTOS';
+
+export const setSidebarPhotos = (photos) => ({
+  type: SET_SIDEBAR_PHOTOS,
+  payload: photos
+});
+

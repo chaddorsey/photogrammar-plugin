@@ -31,14 +31,6 @@ const App = ({ className, isInitialized, initializeData, hasCompletedFirstLoad, 
     return null;
   }
 
-  // if (!hasCompletedFirstLoad) {
-  //   return (
-  //     <Router basename={process.env.PUBLIC_URL}>
-  //       <ActionsFromURL />
-  //     </Router>
-  //   );
-  // }
-
   return (
     <Router basename={process.env.PUBLIC_URL}>
       <Switch>
@@ -64,10 +56,9 @@ const App = ({ className, isInitialized, initializeData, hasCompletedFirstLoad, 
           </Link>
         </header>
         <Navbar />
-
         {(hasCompletedFirstLoad) && (
           <React.Fragment>
-              <div id="viz-canvas">
+            <div id="viz-canvas">
               <Switch>
                 <Route
                   path='/'
@@ -130,25 +121,22 @@ const App = ({ className, isInitialized, initializeData, hasCompletedFirstLoad, 
                     </React.Fragment>
                   )}
                 </Route>
-                </Switch>
-              </div>
-              <Switch>
+              </Switch>
+            </div>
+            <Switch>
               <Route path={'/lightbox'}>
                 <Lightbox />
               </Route>
-              </Switch>
-
+            </Switch>
 
             <Welcome />
 
             <SidebarHeader />
             <SidebarPhotos />
-            
           </React.Fragment>
         )}
       </div>
       {(searchOpen) && <Search />}
-      
     </Router>
   );
 };

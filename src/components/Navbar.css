@@ -60,4 +60,68 @@ nav.navbar {
   }
 }
 
+.navbar {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.navbar-links a {
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.navbar-links a:hover {
+  color: #297373;
+}
+
+.nav-button,
+.export-csv-button {
+  padding: 8px 16px;
+  background: #297373;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  height: auto;
+  width: auto;
+  line-height: normal;
+  box-shadow: none;
+}
+
+.nav-button:hover,
+.export-csv-button:hover {
+  background: #1e5555;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 10px;
+  }
+
+  .navbar-links {
+    gap: 10px;
+  }
+
+  .navbar-links a,
+  .nav-button,
+  .export-csv-button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
+
 
