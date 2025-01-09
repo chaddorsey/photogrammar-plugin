@@ -4,11 +4,13 @@ import { getMakeLinkFunction } from '../../utils/makeLinkHelper';
 
 const mapStateToProps = state => {
   const { selectedTheme, selectedViz } = state;
-  const label = (selectedTheme !== 'root')
+  const label = (selectedTheme && selectedTheme !== 'root' && selectedTheme.includes('|'))
     ? selectedTheme.substring(selectedTheme.lastIndexOf('|') + 1)
     : null;
   const makeLink = getMakeLinkFunction(state);
-  const parentTheme = selectedTheme.substring(0, selectedTheme.lastIndexOf("|"));
+  const parentTheme = selectedTheme && selectedTheme.includes('|')
+    ? selectedTheme.substring(0, selectedTheme.lastIndexOf('|'))
+    : 'root';
   const link = makeLink([{
     type: 'set_theme',
     payload: parentTheme,

@@ -24,6 +24,8 @@ export default {
   isWelcomeOpen: false,
   pathname: '/maps',
   hash: null,
+  stateOptions: [],
+  searchOpen: false,
   dimensions: {
     calculated: false,
     vizCanvas: {
@@ -56,6 +58,5 @@ export default {
   },
   filterTerms: [],
   expandedSidebar: false,
-  searchOpen: false,
   vizOpen: true,
 };

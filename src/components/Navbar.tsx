@@ -7,7 +7,7 @@ import { Props } from './Navbar.d';
 import { loadLookupTable } from '../utils/lookupTable';
 import LoadPhotosModal from './LoadPhotosModal';
 import { getSidebarPhotosQuery } from '../store/selectors';
-import { resetMapView } from '../store/actions';
+import { resetMapView, setCitiesView } from '../store/actions';
 import {
   loadUMAPData,
   loadFaceDetectionData,
@@ -35,6 +35,10 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
 
   const handleMapReset = () => {
     dispatch(resetMapView());
+  };
+
+  const handleCitiesView = () => {
+    dispatch(setCitiesView());
   };
 
   const handleExportCSV = async () => {
@@ -187,7 +191,7 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
               const stripPosition = photo.photograph_type ? 
                 (photo.photograph_type.length === 1 ? 
                   photo.photograph_type.toLowerCase().charCodeAt(0) - 96 : 
-                  parseInt(photo.photograph_type.substring(1))) : 
+                  photo.photograph_type ? parseInt(photo.photograph_type.substring(1)) : '') : 
                 '';
 
               const values = [
@@ -281,7 +285,7 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
           <Link to={countiesLink} onClick={handleMapReset}>{`${(!isMobile) ? 'Map: ' : ''}Counties`}</Link>
         </li>
         <li className={(selectedViz === 'map' && selectedMapView === 'cities' && pathname !== '/about') ? 'active cities' : 'cities'}>
-          <Link to={citiesLink}>{`${(!isMobile) ? 'Map: ' : ''}Cities & Towns`}</Link>
+          <Link to={citiesLink} onClick={handleCitiesView}>{`${(!isMobile) ? 'Map: ' : ''}Cities & Towns`}</Link>
         </li>
         {(isMobile) ? (
           <li className={(selectedViz === 'timeline') ? 'active timeline' : 'timeline'}>

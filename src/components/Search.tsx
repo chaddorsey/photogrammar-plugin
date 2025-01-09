@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
-import Select, { ValueType, ActionMeta } from 'react-select';
-import CreatableSelect, { makeCreatableSelect } from 'react-select/creatable';
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { Range } from 'rc-slider';
-import * as d3 from 'd3';
+import { scaleLinear } from 'd3-scale';
 import PhotographersSelect from './search/PhotographersSelect.js';
 import StateSelect from './search/StateSelect.js';
 import SearchSelect from './search/SearchSelect';
@@ -14,6 +14,8 @@ import CloseButton from './buttons/Close.tsx';
 import './Search.css';
 import { Props, Field, Option, Cities, DBCities, DBQueryResult } from './Search.d';
 import { loadLookupTable } from '../utils/lookupTable';
+
+type SelectChangeHandler = (value: Option | null, actionMeta: { action: string }) => void;
 
 const Search = (props: Props) => {
   const {
@@ -28,91 +30,110 @@ const Search = (props: Props) => {
     selectedMapView,
     countiesOrCitiesOptions,
     toggleSearch,
+    open,
   } = props;
 
-  const [resultsCountQuery, setResultsCountQuery] = useState<null | string>(null);
-  const [photographerOption, setPhotographerOption] = useState(selectedPhotographerOption);
-  const [stateOption, setStateOption] = useState(selectedStateOption);
-  const [countyOrCityOption, setCountyOrCityOption] = useState(selectedCountyOption || selectedCityOption);
-  const [themeOption, setThemeOption] = useState(selectedThemeOption);
-  //const [photoCaptionOption, setPhotoCaptionOption] = useState(terms);
-  const [photoCaptionOptions, setPhotoCaptionOptions] = useState([selectedPhotoCaption]);
-  const [timeRangeOptions, setTimeRangeOptions] = useState(timeRange);
+  const [resultsCountQuery, setResultsCountQuery] = useState<string | null>(null);
+  const [photographerOption, setPhotographerOption] = useState<Option | null>(selectedPhotographerOption);
+  const [stateOption, setStateOption] = useState<Option | null>(selectedStateOption);
+  const [countyOrCityOption, setCountyOrCityOption] = useState<Option | null>(selectedCountyOption || selectedCityOption);
+  const [themeOption, setThemeOption] = useState<Option | null>(selectedThemeOption);
+  const [photoCaptionOptions, setPhotoCaptionOptions] = useState<Option[]>(selectedPhotoCaption ? [selectedPhotoCaption] : []);
+  const [timeRangeOptions, setTimeRangeOptions] = useState<[number, number]>(timeRange);
   const [linkTo, setLinkTo] = useState('/');
   const [controlNumber, setControlNumber] = useState<string>('');
   const [isSearchingById, setIsSearchingById] = useState<boolean>(false);
-  const [controlNumberWhereClause, setControlNumberWhereClause] = useState<string | null>(null);
   const [validatedLocItemLinks, setValidatedLocItemLinks] = useState<string[]>([]);
-
-  useEffect(() => {
-    let path = '';
-    
-    // If we have validated loc item links, use those for the path
-    if (validatedLocItemLinks.length > 0) {
-      path = `/photos/${validatedLocItemLinks.join(',')}`;
-    } else {
-      // Existing path construction logic
-      const photographer = photographerOption && photographerOption.value;
-      const state = stateOption && stateOption.value;
-      const cityOrCounty = countyOrCityOption && countyOrCityOption.value;
-      const theme = themeOption && themeOption.value;
-      const filterTerms = photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value;
-
-      if (cityOrCounty) {
-        path = `/${(selectedMapView === 'cities') ? 'city' : 'county'}/${cityOrCounty}`;
-      } else if (state) {
-        path = `/state/${state}`;
-      } else if (theme) {
-        path = `/themes/${theme}`
-      } else {
-        path = `/maps`;
-      }
-
-      if (theme && !path.includes('/themes/')) {
-        path = `${path}/themes/${theme}`
-      }
-
-      if (photographer) {
-        path = `${path}/photographers/${photographer}`;
-      }
-
-      if (filterTerms) {
-        path = `${path}/caption/${filterTerms}`
-      }
-
-      if (timeRangeOptions[0] !== 193501 || timeRangeOptions[1] !== 194406) {
-        path = `${path}/timeline/${timeRangeOptions.join('-')}`;
-      }
-    }
-
-    if (path !== linkTo) {
-      setLinkTo(path);
-    }
-  }, [validatedLocItemLinks, photographerOption, stateOption, countyOrCityOption, themeOption, photoCaptionOptions, timeRangeOptions, selectedMapView, linkTo]);
-
-  if (!open) {
-    return null;
-  }
 
   const monthNum = (m: number): number => (m - 1) / 12;
   const numToMonth = (num: number): number => Math.round(num * 12) + 1;
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([1935, 1944 + monthNum(6)])
     .range([0, 100]);
+
   const marks: { [x: number]: string; } = {};
   [1935, 1936, 1937, 1938, 1939, 1940, 1941, 1942, 1943, 1944].forEach((y: number): void => {
     marks[x(y)] = y.toString();
   });
+
   const step: number = x(1935 + monthNum(2)) - x(1935);
 
-  const timeDefaultValue = [
+  const timeDefaultValue: [number, number] = [
     x(Math.floor(timeRangeOptions[0] / 100) + monthNum(timeRangeOptions[0] % 100)),
     x(Math.floor(timeRangeOptions[1] / 100) + monthNum(timeRangeOptions[1] % 100)),
   ];
 
-  const makeQuery = (field: Field | 'count') => {
+  const customStyles = {
+    control: (provided: { [cssSelector: string ]: string; }, state: { isFocused: boolean; }) => ({
+      ...provided,
+      borderRadius: '19px',
+      borderColor: (state.isFocused) ? '#297373' : 'grey',
+      backgroundColor: (state.isFocused) ? 'white' : '#fafafa',
+      boxShadow: state.isFocused ? "0 0 0 2px #297373" : '0',
+      '&:hover': {
+        borderColor: 'pink'
+      }
+    }),
+  };
+
+  const handleControlNumberSearch = async () => {
+    try {
+      setIsSearchingById(true);
+      setValidatedLocItemLinks([]); // Clear previous results
+      
+      // Split and clean input
+      const ids = controlNumber
+        .split(/[\s,]+/)
+        .map(id => id.trim())
+        .filter(id => id.length > 0);
+        
+      if (ids.length === 0) {
+        alert('Please enter at least one control number');
+        return;
+      }
+      
+      // Load lookup table
+      const lookupData = await loadLookupTable();
+      if (!lookupData || !lookupData.controlToLoc) {
+        throw new Error('Failed to load lookup table');
+      }
+      
+      // Directly look up loc_item_links using control numbers
+      const locItemLinks = ids.map(id => {
+        const locId = lookupData.controlToLoc[id];
+        if (!locId) {
+          console.warn(`No matching loc_item_link found for control number: ${id}`);
+        }
+        return locId;
+      }).filter((id): id is string => id !== undefined);
+      
+      if (locItemLinks.length === 0) {
+        alert('No matching photos found for the provided control numbers');
+        return;
+      }
+      
+      // Store the validated loc_item_links
+      setValidatedLocItemLinks(locItemLinks);
+      
+      // Clear other search options since we're using control number search
+      setPhotographerOption(null);
+      setStateOption(null);
+      setCountyOrCityOption(null);
+      setThemeOption(null);
+      setPhotoCaptionOptions([]);
+      setTimeRangeOptions([193501, 194406]);
+      
+    } catch (error) {
+      console.error('Error searching by control number:', error);
+      alert('Failed to search photos. Please try again.');
+    } finally {
+      setIsSearchingById(false);
+    }
+  };
+
+  const makeQuery = (field: Field | 'count'): string => {
     const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
-    const wheres = [];
+    const wheres: string[] = [];
 
     // Only apply control number filter for the final count/results query
     if (validatedLocItemLinks.length > 0) {
@@ -132,16 +153,16 @@ const Search = (props: Props) => {
     }
 
     // Existing filter logic for non-control number searches
-    if (field !== 'photographer_name' && photographerOption && photographerOption.label) {
+    if (field !== 'photographer_name' && photographerOption?.label) {
       wheres.push(`photographer_name = '${photographerOption.label}'`);
     }
-    if (field !== 'state' && stateOption && stateOption.label) {
+    if (field !== 'state' && stateOption?.label) {
       wheres.push(`state = '${stateOption.label}'`);
     }
-    if (field !== 'nhgis_join' && selectedMapView === 'counties' && countyOrCityOption && countyOrCityOption.value) {
+    if (field !== 'nhgis_join' && selectedMapView === 'counties' && countyOrCityOption?.value) {
       wheres.push(`nhgis_join = '${countyOrCityOption.value}'`);
     }
-    if (field !== 'city' && selectedMapView === 'cities' && countyOrCityOption && countyOrCityOption.label) {
+    if (field !== 'city' && selectedMapView === 'cities' && countyOrCityOption?.label) {
       // some cities are nested together and only selectable together, you need to get all of them for the count
       if (field === 'count' && countyOrCityOption.sublabels) {
         const cityWheres: string[] = [`city = '${countyOrCityOption.label}'`];
@@ -153,7 +174,7 @@ const Search = (props: Props) => {
         wheres.push(`city = '${countyOrCityOption.label}'`);
       }
     }
-    if (field !== 'themes' && themeOption && themeOption.value) {
+    if (field !== 'themes' && themeOption?.value) {
       const levels = themeOption.value.replace('root|', '').split('|')
       if (levels.length === 3) {
         wheres.push(`vanderbilt_level3 = '${levels[2]}'`);
@@ -175,11 +196,13 @@ const Search = (props: Props) => {
     wheres.push(`(year < ${endYear} or (year = ${endYear} and month <= ${endMonth}))`);
 
     // the value of the filter term can be in a few places from the creatable component
-    if (photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value) {
+    if (photoCaptionOptions?.[0]?.value) {
       const terms = photoCaptionOptions[0].value.match(/(".*?"|[^",\s]+)(?=\s*|\s*$)/g);
-      terms.forEach(filterTerm => {
-         wheres.push(`caption ~* '\\m${filterTerm}'`);
-      });
+      if (terms) {
+        terms.forEach(filterTerm => {
+          wheres.push(`caption ~* '\\m${filterTerm}'`);
+        });
+      }
     } 
 
     if (wheres.length > 0 && field === 'themes') {
@@ -197,109 +220,33 @@ const Search = (props: Props) => {
       }
 
       return `${cartoURLBase}${encodeURIComponent(query)}`;
-    } 
+    }
+
+    return `${cartoURLBase}${encodeURIComponent(
+      `select distinct ${field} as field from photogrammar_photos`
+    )}`;
+  };
+
+  const onTimeChanging = (value: number[]): void => {
+    if (value.length === 2) {
+      const [start, end] = value;
+      const newTimeRange: [number, number] = [
+        Math.floor(x.invert(start)) * 100 + numToMonth(x.invert(start) % 1),
+        Math.floor(x.invert(end)) * 100 + numToMonth(x.invert(end) % 1)
+      ];
+      setTimeRangeOptions(newTimeRange);
+    }
+  };
+
+  if (!open) {
     return null;
-  };
-
-  const onTimeChanging = (xs: [number, number]): void => {
-    const newTimeRange = (xs.map(anX => {
-      const dateNum = x.invert(anX);
-      const rawMonth = numToMonth(dateNum % 1);
-      const year = (rawMonth === 13) ? Math.floor(dateNum) + 1 : Math.floor(dateNum);
-      const month = (rawMonth === 13) ? 1 : rawMonth;
-      return year * 100 + month;
-    })) as [number, number];
-    setTimeRangeOptions(newTimeRange);
-  };
-
-  const customStyles = {
-    control: (provided: { [cssSelector: string ]: string; }, state: { isFocused: boolean; }) => ({
-      ...provided,
-      borderRadius: '19px',
-      borderColor: (state.isFocused) ? '#297373' : 'grey',
-      backgroundColor: (state.isFocused) ? 'white' : '#fafafa',
-      //boxShadow: (state.isFocused) ? 'px 2px 2px 2px #297373' : 'none',
-      boxShadow: state.isFocused ? "0 0 0 2px #297373" : '0',
-      '&:hover': {
-        borderColor: 'pink'
-      }
-    }),
   }
 
-  const filterFunction = (rows: DBQueryResult[] ) => (d: Option) => rows.map(p => p.field).includes(d.label);
-
-  const handleControlNumberSearch = async () => {
-    try {
-      setIsSearchingById(true);
-      setValidatedLocItemLinks([]); // Clear previous results
-      
-      // Split and clean input
-      const ids = controlNumber
-        .split(/[\s,]+/)
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
-        
-      if (ids.length === 0) {
-        alert('Please enter at least one control number');
-        return;
-      }
-      
-      // Load lookup table
-      const lookupData = await loadLookupTable();
-      
-      // Directly look up loc_item_links using control numbers
-      const locItemLinks = ids.map(id => {
-        const locId = lookupData.controlToLoc[id];
-        if (!locId) {
-          console.warn(`No matching loc_item_link found for control number: ${id}`);
-        }
-        return locId;
-      }).filter(id => id);
-      
-      if (locItemLinks.length === 0) {
-        alert('No matching photos found for the provided control numbers');
-        return;
-      }
-      
-      // Store the validated loc_item_links
-      setValidatedLocItemLinks(locItemLinks);
-      
-      // Clear other search options since we're using control number search
-      setPhotographerOption(null);
-      setStateOption(null);
-      setCountyOrCityOption(null);
-      setThemeOption(null);
-      setPhotoCaptionOptions([{ label: null, value: null }]);
-      
-    } catch (error) {
-      console.error('Error searching by control number:', error);
-      alert('Failed to search photos. Please try again.');
-    } finally {
-      setIsSearchingById(false);
-    }
-  };
-
-  // Clear control number search when other search options are used
-  useEffect(() => {
-    if (photographerOption || stateOption || countyOrCityOption || themeOption || 
-        (photoCaptionOptions && photoCaptionOptions[0] && photoCaptionOptions[0].value)) {
-      setControlNumber('');
-      setValidatedLocItemLinks([]);
-    }
-  }, [photographerOption, stateOption, countyOrCityOption, themeOption, photoCaptionOptions]);
-
   return (
-    <div
-      id='searchWrapper'
-    >
-      <div
-        id='advancedSearch'
-      >
+    <div id='searchWrapper'>
+      <div id='advancedSearch'>
         <div className='controls'>
-          <CloseButton
-            onClick={toggleSearch}
-            role='close'
-          />
+          <CloseButton onClick={toggleSearch} role='close' />
         </div>
 
         <h2>Search</h2>
@@ -329,146 +276,68 @@ const Search = (props: Props) => {
         <PhotographersSelect
           fetchPath={makeQuery('photographer_name')}
           defaultValue={photographerOption}
-          onChange={(inputValue: ValueType<Option, false>, action: ActionMeta<Option>) => { setPhotographerOption(inputValue); }}
+          onChange={(value: Option | null) => setPhotographerOption(value)}
           label='Photographer'
         />
 
         <StateSelect
           fetchPath={makeQuery('state')}
           defaultValue={stateOption}
-          onChange={(inputValue: ValueType<Option, false>, { action }: { action: string }) => { 
-            setStateOption(inputValue); 
-            if (action === 'clear') {
+          onChange={(value: Option | null, actionMeta?: { action: string }) => {
+            setStateOption(value);
+            if (actionMeta?.action === 'clear') {
               setCountyOrCityOption(null);
             }
           }}
           label='State'
         />
 
-        {(selectedMapView === 'counties' && stateOption) && (
-          <SearchSelect
-            fetchPath={makeQuery('nhgis_join')}
-            defaultValue={countyOrCityOption}
-            onChange={(inputValue: ValueType<Option, false>, action: ActionMeta<Option>) => { setCountyOrCityOption(inputValue); }}
-            label='County'
-            allOptions={countiesOrCitiesOptions.counties[stateOption.value]}
-          />
-        )}
-
-        {(selectedMapView === 'counties' && !stateOption) && (
-          <React.Fragment>
-            <h4>County</h4>
-            <div>Select state above</div>
-          </React.Fragment>
-        )}
-
-        {(selectedMapView === 'cities' && stateOption) && (
-          <SearchSelect
-            fetchPath={makeQuery('city')}
-            defaultValue={countyOrCityOption}
-            onChange={(inputValue: ValueType<Option, false>, action: ActionMeta<Option>) => { setCountyOrCityOption(inputValue); }}
-            formatOptionLabel={({value, label, sublabels}: Option) => (<div>{label}{(sublabels) ? ` (includes ${sublabels.join(', ')})`: ''}</div>)}
-            label='City'
-            allOptions={countiesOrCitiesOptions.cities[stateOption.value]}
-          />
-        )}
-
-        {(selectedMapView === 'cities' && !stateOption) && (
-          <React.Fragment>
-            <h4>City</h4>
-            <div>Select state above</div>
-          </React.Fragment>
-        )}
+        <SearchSelect
+          fetchPath={makeQuery(selectedMapView === 'cities' ? 'city' : 'nhgis_join')}
+          defaultValue={countyOrCityOption}
+          onChange={(value: Option | null) => setCountyOrCityOption(value)}
+          label={selectedMapView === 'cities' ? 'City' : 'County'}
+          isDisabled={!stateOption}
+          options={stateOption ? countiesOrCitiesOptions[selectedMapView === 'cities' ? 'cities' : 'counties'][stateOption.value] : []}
+        />
 
         <ThemesSelect
           fetchPath={makeQuery('themes')}
           defaultValue={themeOption}
-          onChange={(inputValue: ValueType<Option, false>, action: ActionMeta<Option>) => { setThemeOption(inputValue); }}
+          onChange={(value: Option | null) => setThemeOption(value)}
           label='Theme'
-         />
-
-        <h4>Photo Caption</h4>
-
-        <CreatableSelect
-          styles={customStyles}
-          options={photoCaptionOptions}
-          isClearable
-          onCreateOption={(inputValue) => {
-            setPhotoCaptionOptions([
-              {
-                label: inputValue,
-                value: inputValue,
-              },
-              ...photoCaptionOptions.filter(d => d.value),
-            ]);
-            // setPhotoCaptionOption({
-            //   label: inputValue,
-            //   value: inputValue,
-            // });
-          }}
-          onChange={(inputValue: ValueType<Option, false>, { action }: { action: string }) => {
-            if (action === 'clear') {
-              setPhotoCaptionOptions([
-                {
-                  label: null,
-                  value: null,
-                },
-                ...photoCaptionOptions,
-              ]);
-            }
-            if (action === 'select-option') {
-              setPhotoCaptionOptions([
-                inputValue,
-                ...photoCaptionOptions.filter(d => d.value !== inputValue.value),
-              ]);
-              //setPhotoCaptionOption(inputValue);
-            }
-          }}
-          formatCreateLabel={(inputValue) => `search captions for "${inputValue}"`}
-          createOptionPosition='last'
-          //placeholder={captionInput}
-          value={photoCaptionOptions[0]}
         />
 
-        <h4>Time Range</h4>
-
-        <div
-          className='timelineSlider'
-          style={{
-            width: '90%',
-            marginLeft: '5%',
-          }}
-        >
-          <Range
-            allowCross={false}
-            value={timeDefaultValue}
-            onChange={onTimeChanging} 
-            marks={marks}
-            step={step}
-            trackStyle={[{
-              backgroundColor: 'black',
-            }]}
-            handleStyle={[
-              {
-                borderColor: 'black',
-                backgroundColor: '#F2BE00',
-              },
-              {
-                borderColor: 'black',
-                backgroundColor: '#F2BE00',
-              },
-            ]} 
-            activeDotStyle={{
-              borderColor: 'black',
-            }}
+        <div className='search-field'>
+          <label>Caption</label>
+          <CreatableSelect
+            styles={customStyles}
+            value={photoCaptionOptions}
+            onChange={(value: Option[]) => setPhotoCaptionOptions(value)}
+            isMulti
+            placeholder='Enter search terms'
           />
         </div>
 
-        <SearchButton
-          linkTo={linkTo}
-          fetchPath={makeQuery('count')}
-          toggleSearch={toggleSearch}
-        />
+        <div className='search-field'>
+          <label>Time Range</label>
+          <Range
+            min={0}
+            max={100}
+            step={step}
+            defaultValue={timeDefaultValue}
+            marks={marks}
+            onChange={onTimeChanging}
+          />
+        </div>
+
+        <div className='search-field'>
+          <SearchButton
+            linkTo={linkTo}
+            fetchPath={makeQuery('count')}
+            toggleSearch={toggleSearch}
+          />
+        </div>
       </div>
     </div>
   );

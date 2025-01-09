@@ -8,7 +8,7 @@ const mapStateToProps = state => {
   let label;
   if (selectedCounty) {
     label = `${getSelectedCountyMetadata(state).name}`;
-  } else if (selectedCity) {
+  } else if (selectedCity && typeof selectedCity === 'string' && selectedCity.length > 3) {
     label = `${selectedCity.substring(3)}`;
   }
   const makeLink = getMakeLinkFunction(state);

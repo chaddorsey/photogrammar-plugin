@@ -9,7 +9,7 @@ import PhotographersMetadata from '../data/photographersMetadata.json';
 import StateCounts from '../data/stateCounts.json';
 import Cities from '../data/citiesCounts.json';
 import Centroids from '../data/centroids.json';
-const stateabbrs = {"AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "DC": "District Of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "PR": "Puerto Rico", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VI": "Virgin Islands", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"};
+import { stateabbrs } from '../data/stateabbrs';
 const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
     
 const getSelectedPhotographer = state => state.selectedPhotographer;
@@ -579,37 +579,38 @@ export const getLinkUp = createSelector(
   }
 );
 
-export const getStateSearchOptions = () => {
-  return Object.keys(stateabbrs).map(abbr => ({
+export const getStateSearchOptions = (state) => {
+  return state.stateOptions || Object.keys(stateabbrs).map(abbr => ({
     value: abbr,
     label: stateabbrs[abbr],
   }));
 };
 
 export const getCountiesSearchOptions = () => {
-  const abbrs = Object.keys(stateabbrs);
   const countyOptions = {};
+  
+  // Initialize arrays for each state
   Object.keys(stateabbrs).forEach(abbr => {
     countyOptions[abbr] = [];
   });
 
+  // Add counties to their respective state arrays
   Counties.forEach(c => {
-    countyOptions[c.s].push({
-      value: c.j,
-      label: `${c.n}`,
-    });
+    if (c.s && countyOptions[c.s]) {
+      countyOptions[c.s].push({
+        value: c.j,
+        label: `${c.n}`,
+      });
+    }
   });
 
+  // Sort counties within each state
   Object.keys(countyOptions).forEach(state => {
-    countyOptions[state] = countyOptions[state].sort((a, b) => {
-      if (b.label < a.label) {
-        return 1;
-      }
-      if (b.label > a.label) {
-        return -1;
-      }
+    countyOptions[state].sort((a, b) => {
+      if (b.label < a.label) return 1;
+      if (b.label > a.label) return -1;
       return 0;
-    })
+    });
   });
 
   return countyOptions;

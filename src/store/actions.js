@@ -383,13 +383,38 @@ export const resetMapView = () => {
     dispatch({
       type: A.SET_STATE,
       payload: {
+        selectedViz: 'map',
         selectedMapView: 'counties',
         selectedCounty: null,
         selectedCity: null,
         selectedState: null,
+        selectedPhotographer: null,
+        selectedTheme: null,
         filterTerms: [],
         sidebarPhotosOffset: 0,
-        timeRange: [193501, 194406]
+        timeRange: [193501, 194406],
+        pathname: '/maps'
+      }
+    });
+  };
+};
+
+export const setCitiesView = () => {
+  return (dispatch) => {
+    dispatch({
+      type: A.SET_STATE,
+      payload: {
+        selectedViz: 'map',
+        selectedMapView: 'cities',
+        selectedCounty: null,
+        selectedCity: null,
+        selectedState: null,
+        selectedPhotographer: null,
+        selectedTheme: null,
+        filterTerms: [],
+        sidebarPhotosOffset: 0,
+        timeRange: [193501, 194406],
+        pathname: '/maps/cities'
       }
     });
   };
