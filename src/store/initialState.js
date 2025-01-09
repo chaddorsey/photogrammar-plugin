@@ -25,6 +25,7 @@ export default {
   pathname: '/maps',
   hash: null,
   stateOptions: [],
+  sidebarPhotosQuery: null,
   dimensions: {
     calculated: false,
     vizCanvas: {

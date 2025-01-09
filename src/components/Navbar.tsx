@@ -21,9 +21,10 @@ const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?forma
 
 interface NavbarProps extends Props {
   currentQuery: string;
+  sidebarPhotosQuery?: string;
 }
 
-const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMapView, toggleSearch, isMobile, currentQuery }: NavbarProps) => {
+const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMapView, toggleSearch, isMobile, currentQuery, sidebarPhotosQuery }: NavbarProps) => {
   const location = useLocation();
   const { pathname } = location;
   const [isLoadPhotosOpen, setIsLoadPhotosOpen] = useState(false);
@@ -34,16 +35,26 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
   };
 
   const handleMapReset = () => {
+    dispatch({
+      type: 'SET_STATE',
+      payload: {
+        sidebarPhotosQuery: null
+      }
+    });
     dispatch(resetMapView());
   };
 
   const handleExportCSV = async () => {
     try {
-      if (!currentQuery) {
+      // Use sidebarPhotosQuery directly if available, otherwise fall back to currentQuery
+      const query = sidebarPhotosQuery || currentQuery;
+      if (!query) {
         console.warn('No query available');
         alert('No photos available for export. Please ensure you are viewing photos in the sidebar.');
         return;
       }
+
+      console.log('Using query for export:', query); // Debug log
 
       // Load all required data in parallel
       const [lookupData, umapData, faceData, photoDimensions, panoData] = await Promise.all([
@@ -55,10 +66,18 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
       ]);
 
       // Extract and clean up the SQL query
-      let sqlQuery = decodeURIComponent(currentQuery.replace(cartoURLBase, ''));
+      let sqlQuery = query;
+      // Only decode and clean if it's a CartoDB URL
+      if (query.startsWith(cartoURLBase)) {
+        sqlQuery = decodeURIComponent(query.replace(cartoURLBase, ''));
+      }
+
+      // For debugging
+      console.log('SQL query after cleaning:', sqlQuery);
+
       const orderByMatch = sqlQuery.match(/ORDER\s+BY\s+.*?(?=\s+LIMIT|$)/i);
       const orderByClause = orderByMatch ? orderByMatch[0] : '';
-      
+
       // Remove any existing clauses that might interfere with our pagination
       sqlQuery = sqlQuery
         .replace(/SELECT\s+.*?\s+FROM/i, 'SELECT * FROM')
@@ -66,17 +85,23 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
         .replace(/\s+OFFSET\s+\d+/gi, '')
         .replace(/\s+ORDER\s+BY\s+.*$/i, '');
 
-      // Extract the base query and where clause, ensuring we don't duplicate conditions
-      const fromMatch = sqlQuery.match(/FROM\s+\w+/i);
+      // For debugging
+      console.log('SQL query after removing clauses:', sqlQuery);
+
+      // Extract the base query and where clause, preserving table alias if present
+      const fromMatch = sqlQuery.match(/FROM\s+(\w+)(?:\s+(\w+))?/i);
       const whereMatch = sqlQuery.match(/WHERE\s+.*?(?=\s+ORDER\s+BY|$)/i);
       
       if (!fromMatch) {
         throw new Error('Invalid query: Could not find FROM clause');
       }
       
-      const baseQuery = fromMatch[0];
-      const whereClause = whereMatch ? whereMatch[0] : '';
-      const countQuery = `SELECT COUNT(*) as total ${baseQuery} ${whereClause}`;
+      const tableName = fromMatch[1];
+      const tableAlias = fromMatch[2] || '';
+      const whereClause = whereMatch ? whereMatch[0].replace(new RegExp(`${tableAlias}\\.`, 'g'), '') : '';
+      
+      // Construct the count query without table alias
+      const countQuery = `SELECT COUNT(*) as total FROM ${tableName} ${whereClause}`;
       
       console.log('Count query:', countQuery);
       
@@ -140,8 +165,9 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
           try {
             const offset = batch * batchSize;
             // Construct batch query with original ORDER BY clause
-            const batchQuery = `SELECT * ${baseQuery} ${whereClause} ${orderByClause} LIMIT ${batchSize} OFFSET ${offset}`;
+            const batchQuery = `SELECT * FROM ${tableName} ${whereClause} ${orderByClause} LIMIT ${batchSize} OFFSET ${offset}`;
             console.log(`Fetching batch ${batch + 1}/${totalBatches} (${offset} to ${offset + batchSize})`);
+            console.log('Batch query:', batchQuery);
 
             const response = await fetch(cartoURLBase + encodeURIComponent(batchQuery));
             if (!response.ok) {
@@ -310,7 +336,8 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
 };
 
 const mapStateToProps = (state: any) => ({
-  currentQuery: getSidebarPhotosQuery(state)
+  currentQuery: state.sidebarPhotosQuery || getSidebarPhotosQuery(state),
+  sidebarPhotosQuery: state.sidebarPhotosQuery
 });
 
 export default connect(mapStateToProps)(Navbar);

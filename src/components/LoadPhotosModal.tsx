@@ -98,18 +98,61 @@ const LoadPhotosModal: React.FC<LoadPhotosModalProps> = ({ toggleLoadPhotos }) =
       });
 
       if (isMounted.current) {
-        // Create a query that will fetch these specific photos
-        const locItemLinks = data.rows.map(p => p.loc_item_link);
-        const locItemLinksClause = `loc_item_link IN ('${locItemLinks.join("','")}')`;
-        
-        // Reset offset
-        dispatch({ type: A.SET_PHOTO_OFFSET, payload: 0 });
-        
-        // Set filter terms
-        dispatch({ type: A.SET_FILTER_TERMS, payload: [locItemLinksClause] });
-        
-        // Set time range
-        dispatch({ type: A.SET_TIME_RANGE, payload: [193501, 194406] });
+        // Store the query for Export CSV and reset all relevant state
+        dispatch({
+          type: A.SET_STATE,
+          payload: {
+            sidebarPhotosQuery: query,
+            selectedPhotographer: null,
+            selectedPhoto: null,
+            selectedCounty: null,
+            selectedCity: null,
+            selectedState: null,
+            selectedTheme: 'root',
+            selectedViz: selectedViz,  // Preserve current viz
+            selectedMapView: selectedMapView,  // Preserve current map view
+            filterTerms: [],
+            timeRange: [193501, 194406],
+            sidebarPhotosOffset: 0,
+            isWelcomeOpen: false,
+            hasCompletedFirstLoad: true,
+            expandedSidebar: false,
+            searchOpen: false,
+            vizOpen: true,
+            pathname: '/maps',  // Set default pathname
+            hash: null,  // Include hash
+            dimensions: {  // Include dimensions
+              calculated: false,
+              vizCanvas: {
+                height: '90%',
+                width: '60%',
+              },
+              sidebar: {
+                width: 200,
+                height: 600,
+                headerHeight: 70,
+                photosHeight: 530,
+              },
+              map: {
+                height: 500,
+                width: 960,
+                scale: 1,
+              },
+              mapProjection: {
+                height: '100%',
+                width: '100%'
+              },
+              photoCards: {
+                displayableCards: 6,
+              },
+              timelineHeatmap: {
+                height: 250,
+                width: 960,
+                leftAxisWidth: 120,
+              },
+            }
+          }
+        });
 
         // Directly set the photos in the store
         dispatch({ type: A.SET_SIDEBAR_PHOTOS, payload: data.rows });

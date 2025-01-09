@@ -118,6 +118,13 @@ const stateOptions = (state = initialState.stateOptions, action) => {
   return state;
 };
 
+const sidebarPhotosQuery = (state = initialState.sidebarPhotosQuery, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.sidebarPhotosQuery ?? state;
+  }
+  return state;
+};
+
 const combinedReducer = combineReducers({
   selectedPhotographer,
   selectedPhoto,
@@ -141,6 +148,7 @@ const combinedReducer = combineReducers({
   vizOpen,
   sidebarPhotos,
   stateOptions,
+  sidebarPhotosQuery,
 });
 
 export default combinedReducer;

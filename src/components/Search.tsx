@@ -14,6 +14,9 @@ import CloseButton from './buttons/Close.tsx';
 import './Search.css';
 import { Props, Field, Option, Cities, DBCities, DBQueryResult } from './Search.d';
 import { loadLookupTable } from '../utils/lookupTable';
+import { useDispatch } from 'react-redux';
+
+const cartoURLBase = 'https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=';
 
 const Search = (props: Props) => {
   const {
@@ -43,6 +46,7 @@ const Search = (props: Props) => {
   const [isSearchingById, setIsSearchingById] = useState<boolean>(false);
   const [controlNumberWhereClause, setControlNumberWhereClause] = useState<string | null>(null);
   const [validatedLocItemLinks, setValidatedLocItemLinks] = useState<string[]>([]);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     let path = '';
@@ -260,6 +264,31 @@ const Search = (props: Props) => {
         alert('No matching photos found for the provided control numbers');
         return;
       }
+
+      // Construct query for these specific photos
+      const query = `SELECT * FROM photogrammar_photos WHERE loc_item_link IN ('${locItemLinks.join("','")}')`;
+      const fullQuery = cartoURLBase + encodeURIComponent(query);
+      
+      // Fetch the photos
+      const response = await fetch(fullQuery);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch photos: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      
+      // Store the photos in Redux
+      dispatch({
+        type: 'SET_SIDEBAR_PHOTOS',
+        payload: data.rows
+      });
+      
+      // Store the query in Redux for Export CSV
+      dispatch({
+        type: 'SET_STATE',
+        payload: {
+          sidebarPhotosQuery: query  // Store the raw SQL query without the CartoDB URL
+        }
+      });
       
       // Store the validated loc_item_links
       setValidatedLocItemLinks(locItemLinks);
