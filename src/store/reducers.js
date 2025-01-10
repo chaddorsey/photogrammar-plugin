@@ -5,6 +5,7 @@ import { SET_SIDEBAR_PHOTOS } from './actions';
 
 const selectedPhotographer = (state = initialState.selectedPhotographer, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedPhotographer reducer:', { current: state, new: action.payload.selectedPhotographer });
     return action.payload.selectedPhotographer ?? state;
   }
   return state;
@@ -12,6 +13,7 @@ const selectedPhotographer = (state = initialState.selectedPhotographer, action)
 
 const selectedPhoto = (state = initialState.selectedPhoto, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedPhoto reducer:', { current: state, new: action.payload.selectedPhoto });
     return action.payload.selectedPhoto ?? state;
   }
   return state;
@@ -19,6 +21,7 @@ const selectedPhoto = (state = initialState.selectedPhoto, action) => {
 
 const selectedCounty = (state = initialState.selectedCounty, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedCounty reducer:', { current: state, new: action.payload.selectedCounty });
     if (action.payload.selectedMapView === 'cities') {
       return null;
     }
@@ -29,6 +32,7 @@ const selectedCounty = (state = initialState.selectedCounty, action) => {
 
 const selectedCity = (state = initialState.selectedCity, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedCity reducer:', { current: state, new: action.payload.selectedCity });
     if (action.payload.selectedMapView === 'counties') {
       return null;
     }
@@ -39,6 +43,7 @@ const selectedCity = (state = initialState.selectedCity, action) => {
 
 const selectedState = (state = initialState.selectedState, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedState reducer:', { current: state, new: action.payload.selectedState });
     if (action.payload.selectedMapView && 
         action.payload.selectedMapView !== action.payload.previousMapView && 
         !action.payload.selectedState) {
@@ -49,20 +54,41 @@ const selectedState = (state = initialState.selectedState, action) => {
   return state;
 };
 
-const selectedTheme = (state = initialState.selectedTheme, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedTheme : state
-);
+const selectedTheme = (state = initialState.selectedTheme, action) => {
+  if (action.type === A.SET_STATE) {
+    console.log('selectedTheme reducer:', { current: state, new: action.payload.selectedTheme });
+    return action.payload.selectedTheme ?? state;
+  }
+  return state;
+};
 
-const filterTerms = (state = initialState.filterTerms, action) => (
-  (action.type === A.SET_STATE) ? action.payload.filterTerms : state
-);
+const filterTerms = (state = initialState.filterTerms, action) => {
+  if (action.type === A.SET_STATE) {
+    console.log('filterTerms reducer:', { current: state, new: action.payload.filterTerms });
+    return action.payload.filterTerms ?? state;
+  }
+  return state;
+};
 
-const selectedViz = (state = initialState.selectedViz, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedViz : state
-);
+const selectedViz = (state = initialState.selectedViz, action) => {
+  if (action.type === A.SET_STATE) {
+    console.log('selectedViz reducer:', { current: state, new: action.payload.selectedViz });
+    return action.payload.selectedViz ?? state;
+  }
+  return state;
+};
 
 const selectedMapView = (state = initialState.selectedMapView, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('selectedMapView reducer:', { 
+      current: state, 
+      new: action.payload.selectedMapView,
+      selectedViz: action.payload.selectedViz 
+    });
+    if (action.payload.selectedViz === 'themes') {
+      console.log('Forcing selectedMapView to null for themes view');
+      return null;
+    }
     if (action.payload.selectedMapView === 'cities') {
       return 'cities';
     }
@@ -99,6 +125,7 @@ const timeRange = (state = initialState.timeRange, action) => {
 
 const pathname = (state = initialState.pathname, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('pathname reducer:', { current: state, new: action.payload.pathname });
     return action.payload.pathname ?? state;
   }
   return state;
@@ -113,7 +140,17 @@ const hash = (state = initialState.hash, action) => {
 
 const dimensions = (state = initialState.dimensions, action) => {
   if (action.type === A.DIMENSIONS_CALCULATED) {
-    return action.payload ?? state;
+    return {
+      ...state,
+      ...action.payload,
+      calculated: true
+    };
+  }
+  if (action.type === A.SET_STATE && action.payload.dimensions) {
+    return {
+      ...state,
+      ...action.payload.dimensions
+    };
   }
   return state;
 };
@@ -143,25 +180,35 @@ const expandedSidebar = (state = initialState.expandedSidebar, action) => {
   if (action.type === A.TOGGLE_EXPANDED_SIDEBAR) {
     return !state;
   }
-  return state;
-};
-
-const searchOpen = (state = initialState, action) => {
-  if (action.type === A.TOGGLE_SEARCH) {
-    return !state;
-  } 
   if (action.type === A.SET_STATE) {
-    return false;
+    return action.payload.expandedSidebar ?? state;
   }
   return state;
 };
 
-const vizOpen = (state = initialState, action) => (
-  (action.type === A.TOGGLE_VIZ) ? !state : state
-);
+const searchOpen = (state = initialState.searchOpen, action) => {
+  if (action.type === A.TOGGLE_SEARCH) {
+    return !state;
+  } 
+  if (action.type === A.SET_STATE) {
+    return action.payload.searchOpen ?? state;
+  }
+  return state;
+};
+
+const vizOpen = (state = initialState.vizOpen, action) => {
+  if (action.type === A.TOGGLE_VIZ) {
+    return !state;
+  }
+  if (action.type === A.SET_STATE) {
+    return action.payload.vizOpen ?? state;
+  }
+  return state;
+};
 
 const sidebarPhotos = (state = [], action) => {
   if (action.type === A.SET_SIDEBAR_PHOTOS) {
+    console.log('sidebarPhotos reducer: Setting new photos');
     return action.payload;
   }
   return state;
@@ -176,6 +223,7 @@ const stateOptions = (state = initialState.stateOptions, action) => {
 
 const sidebarPhotosQuery = (state = initialState.sidebarPhotosQuery, action) => {
   if (action.type === A.SET_STATE) {
+    console.log('sidebarPhotosQuery reducer:', { current: state, new: action.payload.sidebarPhotosQuery });
     return action.payload.sidebarPhotosQuery ?? state;
   }
   return state;

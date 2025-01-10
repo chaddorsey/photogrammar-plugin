@@ -8,6 +8,7 @@ import { loadLookupTable } from '../utils/lookupTable';
 import LoadPhotosModal from './LoadPhotosModal';
 import { getSidebarPhotosQuery } from '../store/selectors';
 import { resetMapView } from '../store/actions';
+import initialState from '../store/initialState';
 import {
   loadUMAPData,
   loadFaceDetectionData,
@@ -116,35 +117,93 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
 
   const handleThemesClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default navigation
+    console.log('Themes clicked - Starting state transition');
     
     // First, fetch random photos
     const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
-    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + encodeURIComponent(query))
+    console.log('Fetching random photos with query:', query);
+    
+    fetch(cartoURLBase + encodeURIComponent(query))
       .then(response => response.json())
       .then(data => {
         if (data.rows) {
-          // Only after we have the photos, update the state
+          console.log('Photos fetched successfully, dispatching state change');
+          const payload = {
+            selectedMapView: null,
+            previousMapView: null, // Clear previous map view
+            selectedCounty: null,
+            selectedCity: null,
+            selectedState: null,
+            selectedTheme: 'root',
+            filterTerms: [],
+            sidebarPhotosQuery: query,
+            pathname: '/themes',
+            hash: '',
+            timeRange: [193501, 194406],
+            selectedViz: 'themes',
+            sidebarPhotosOffset: 0,
+            vizOpen: true,
+            searchOpen: false,
+            expandedSidebar: false,
+            hasCompletedFirstLoad: true,
+            dimensions: {
+              ...initialState.dimensions,
+              calculated: false
+            }
+          };
+          console.log('Dispatching SET_STATE with payload:', payload);
+          
+          // First dispatch the state change
           dispatch({
             type: 'SET_STATE',
-            payload: {
-              selectedMapView: selectedMapView, // Preserve current map view type
-              selectedCounty: null,
-              selectedCity: null,
-              selectedState: null,
-              selectedTheme: 'root',
-              filterTerms: [],
-              sidebarPhotosQuery: query,
-              pathname: '/themes',
-              hash: null,
-              timeRange: [193501, 194406],
-              selectedViz: 'themes',
-              sidebarPhotosOffset: 0
-            }
+            payload
           });
+
+          console.log('Dispatching SET_SIDEBAR_PHOTOS');
+          // Then update the photos
           dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+          
+          console.log('Updating URL to /themes');
+          // Finally, update the URL
+          window.history.pushState(null, '', '/themes');
         }
       })
-      .catch(error => console.error('Error fetching random photos:', error));
+      .catch(error => {
+        console.error('Error fetching random photos:', error);
+        // Even if photos fail to load, still switch to themes view
+        const payload = {
+          selectedMapView: null,
+          previousMapView: null, // Clear previous map view
+          selectedCounty: null,
+          selectedCity: null,
+          selectedState: null,
+          selectedTheme: 'root',
+          filterTerms: [],
+          pathname: '/themes',
+          hash: '',
+          timeRange: [193501, 194406],
+          selectedViz: 'themes',
+          sidebarPhotosOffset: 0,
+          vizOpen: true,
+          searchOpen: false,
+          expandedSidebar: false,
+          hasCompletedFirstLoad: true,
+          dimensions: {
+            ...initialState.dimensions,
+            calculated: false
+          }
+        };
+        console.log('Photo fetch failed, dispatching SET_STATE with payload:', payload);
+        
+        dispatch({
+          type: 'SET_STATE',
+          payload
+        });
+        
+        console.log('Updating URL to /themes');
+        // Update the URL even if photos fail to load
+        window.history.pushState(null, '', '/themes');
+      });
   };
 
   const handleExportCSV = async () => {

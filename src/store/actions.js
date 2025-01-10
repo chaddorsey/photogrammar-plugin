@@ -88,8 +88,16 @@ export function setState(payload) {
       sidebarPhotosOffset: payload.sidebarPhotosOffset ?? sidebarPhotosOffset
     };
 
+    // Handle themes view specifically
+    if (payload.selectedViz === 'themes') {
+      updatedPayload.selectedMapView = null;
+      updatedPayload.selectedCounty = null;
+      updatedPayload.selectedCity = null;
+      updatedPayload.selectedState = null;
+      updatedPayload.pathname = payload.selectedTheme ? `/themes/${payload.selectedTheme}` : '/themes';
+    }
     // Preserve view type when selecting a state
-    if (payload.selectedState && !payload.selectedMapView) {
+    else if (payload.selectedState && !payload.selectedMapView) {
       // If we're selecting a state, keep the current map view type
       updatedPayload.selectedMapView = selectedMapView;
       
@@ -97,6 +105,9 @@ export function setState(payload) {
       if (selectedMapView === 'cities') {
         updatedPayload.selectedCounty = null;
       }
+      
+      // Set appropriate pathname for map view
+      updatedPayload.pathname = `/state/${payload.selectedState}`;
     }
 
     const hasSelectionChanged = updatedPayload.selectedPhotographer !== selectedPhotographer
@@ -113,12 +124,18 @@ export function setState(payload) {
     if (hasSelectionChanged) {
       updatedPayload.sidebarPhotosOffset = 0;
 
-      // Construct SQL query based on the new selection
-      const wheres = makeWheres({
-        ...getState(),
-        ...updatedPayload
-      });
-      const query = `${sqlQueryBase} WHERE ${wheres.join(' AND ')}`;
+      // For themes view, use random photos query
+      let query;
+      if (updatedPayload.selectedViz === 'themes') {
+        query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+      } else {
+        // Construct SQL query based on the new selection
+        const wheres = makeWheres({
+          ...getState(),
+          ...updatedPayload
+        });
+        query = `${sqlQueryBase} WHERE ${wheres.join(' AND ')}`;
+      }
 
       try {
         // Fetch photos from database
