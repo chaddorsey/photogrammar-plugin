@@ -19,6 +19,9 @@ const selectedPhoto = (state = initialState.selectedPhoto, action) => {
 
 const selectedCounty = (state = initialState.selectedCounty, action) => {
   if (action.type === A.SET_STATE) {
+    if (action.payload.selectedMapView === 'cities') {
+      return null;
+    }
     return action.payload.selectedCounty ?? state;
   }
   return state;
@@ -26,6 +29,9 @@ const selectedCounty = (state = initialState.selectedCounty, action) => {
 
 const selectedCity = (state = initialState.selectedCity, action) => {
   if (action.type === A.SET_STATE) {
+    if (action.payload.selectedMapView === 'counties') {
+      return null;
+    }
     return action.payload.selectedCity ?? state;
   }
   return state;
@@ -33,6 +39,11 @@ const selectedCity = (state = initialState.selectedCity, action) => {
 
 const selectedState = (state = initialState.selectedState, action) => {
   if (action.type === A.SET_STATE) {
+    if (action.payload.selectedMapView && 
+        action.payload.selectedMapView !== action.payload.previousMapView && 
+        !action.payload.selectedState) {
+      return null;
+    }
     return action.payload.selectedState ?? state;
   }
   return state;
@@ -50,9 +61,18 @@ const selectedViz = (state = initialState.selectedViz, action) => (
   (action.type === A.SET_STATE) ? action.payload.selectedViz : state
 );
 
-const selectedMapView = (state = initialState.selectedMapView, action) => (
-  (action.type === A.SET_STATE) ? action.payload.selectedMapView : state
-);
+const selectedMapView = (state = initialState.selectedMapView, action) => {
+  if (action.type === A.SET_STATE) {
+    if (action.payload.selectedMapView === 'cities') {
+      return 'cities';
+    }
+    if (action.payload.selectedMapView === 'counties') {
+      return 'counties';
+    }
+    return action.payload.selectedMapView ?? state;
+  }
+  return state;
+};
 
 const sidebarPhotosOffset = (state = initialState.sidebarPhotosOffset, action) => {
   if (action.type === A.SET_STATE) {
@@ -77,33 +97,54 @@ const timeRange = (state = initialState.timeRange, action) => {
   return state;
 };
 
-const pathname = (state = initialState.pathname, action) => (
-  (action.type === A.SET_STATE) ? action.payload.pathname : state
-);
+const pathname = (state = initialState.pathname, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.pathname ?? state;
+  }
+  return state;
+};
 
-const hash = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? action.payload.hash : state
-);
+const hash = (state = initialState.hash, action) => {
+  if (action.type === A.SET_STATE) {
+    return action.payload.hash ?? state;
+  }
+  return state;
+};
 
-const dimensions = (state = initialState, action) => (
-  (action.type === A.DIMENSIONS_CALCULATED) ? action.payload : state
-);
+const dimensions = (state = initialState.dimensions, action) => {
+  if (action.type === A.DIMENSIONS_CALCULATED) {
+    return action.payload ?? state;
+  }
+  return state;
+};
 
-const isWelcomeOpen = (state = initialState, action) => (
-  (action.type === A.CLOSE_WELCOME) ? false : state
-);
+const isWelcomeOpen = (state = initialState.isWelcomeOpen, action) => {
+  if (action.type === A.CLOSE_WELCOME) {
+    return false;
+  }
+  return state;
+};
 
-const isInitialized = (state = initialState, action) => (
-  (action.type === A.INITIALIZED) ? true : state
-);
+const isInitialized = (state = initialState.isInitialized, action) => {
+  if (action.type === A.INITIALIZED) {
+    return true;
+  }
+  return state;
+};
 
-const hasCompletedFirstLoad = (state = initialState, action) => (
-  (action.type === A.SET_STATE) ? true : state
-);
+const hasCompletedFirstLoad = (state = initialState.hasCompletedFirstLoad, action) => {
+  if (action.type === A.SET_STATE) {
+    return true;
+  }
+  return state;
+};
 
-const expandedSidebar = (state = initialState, action) => (
-  (action.type === A.TOGGLE_EXPANDED_SIDEBAR) ? !state : state
-);
+const expandedSidebar = (state = initialState.expandedSidebar, action) => {
+  if (action.type === A.TOGGLE_EXPANDED_SIDEBAR) {
+    return !state;
+  }
+  return state;
+};
 
 const searchOpen = (state = initialState, action) => {
   if (action.type === A.TOGGLE_SEARCH) {

@@ -45,10 +45,21 @@ const ActionsFromURL = ({ setState }: { setState: (obj: AppState) => void }): nu
     // remove the basename from the pathPieces and build an object with state parameters
     const stateParams: ParsedStateFacets = parsePathname(pathname.replace(`${process.env.PUBLIC_URL}`, ''));
     
-    // Preserve current view type when state is selected, otherwise use URL parameters
-    const selectedMapView: MapView = stateParams.state ? 
-      currentMapView : // Keep current view if state is selected
-      (stateParams.city || hash === '#mapview=cities') ? 'cities' : 'counties';
+    // Determine map view type
+    let selectedMapView: MapView;
+    if (hash.includes('mapview=')) {
+      // If hash explicitly sets view type, use it
+      selectedMapView = hash.includes('mapview=cities') ? 'cities' : 'counties';
+    } else if (stateParams.city) {
+      // If we're selecting a city, use cities view
+      selectedMapView = 'cities';
+    } else if (stateParams.county) {
+      // If we're selecting a county, use counties view
+      selectedMapView = 'counties';
+    } else {
+      // Otherwise preserve current view type
+      selectedMapView = currentMapView;
+    }
 
     const {
       ohsearch,
@@ -82,7 +93,7 @@ const ActionsFromURL = ({ setState }: { setState: (obj: AppState) => void }): nu
         selectedCity: selectedCity as CityKey || null,
         selectedTheme: selectedTheme || 'root',
         selectedViz: selectedViz as Viz,
-        selectedMapView: selectedMapView,
+        selectedMapView,
         filterTerms: (caption) ? caption.match(/(".*?"|[^",\s]+)(?=\s*|\s*$)/g) || [] : [],
         timeRange: (timeline) ? timeline.split('-').map(d => parseInt(d)) as [number, number] : [193501, 194406],
         pathname,

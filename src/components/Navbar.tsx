@@ -38,76 +38,80 @@ const Navbar = ({ countiesLink, citiesLink, themesLink, selectedViz, selectedMap
     setIsLoadPhotosOpen(!isLoadPhotosOpen);
   };
 
-  const handleMapReset = () => {
+  const handleMapReset = async () => {
     // Check if we have a theme selected
     const hasTheme = currentTheme && currentTheme !== 'root';
     const hasGeographicFacets = currentState || currentCounty || currentCity;
 
-    // If we have a theme selected and no geographic facets, retain it
-    // If we have geographic facets, clear everything
-    dispatch({
-      type: 'SET_STATE',
-      payload: {
-        selectedMapView: 'counties',
-        selectedCounty: null,
-        selectedCity: null,
-        selectedState: null,
-        selectedTheme: (hasTheme && !hasGeographicFacets) ? currentTheme : 'root',
-        filterTerms: [],
-        sidebarPhotosQuery: 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000',
-        pathname: (hasTheme && !hasGeographicFacets) ? `/themes/${currentTheme}` : '/maps',
-        hash: null,
-        timeRange: [193501, 194406],
-        selectedViz: (hasTheme && !hasGeographicFacets) ? 'themes' : 'map',
-        sidebarPhotosOffset: 0
-      }
-    });
+    try {
+      // Fetch random photos first
+      const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+      const response = await fetch(cartoURLBase + encodeURIComponent(query));
+      const data = await response.json();
 
-    // Fetch random photos
-    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + 
-      encodeURIComponent('SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000'))
-      .then(response => response.json())
-      .then(data => {
-        if (data.rows) {
-          dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
-        }
-      })
-      .catch(error => console.error('Error fetching random photos:', error));
+      if (data.rows) {
+        // Update state and photos together
+        dispatch({
+          type: 'SET_STATE',
+          payload: {
+            selectedMapView: 'counties',
+            previousMapView: selectedMapView,  // Include previous view type
+            selectedCounty: null,
+            selectedCity: null,
+            selectedState: null,
+            selectedTheme: (hasTheme && !hasGeographicFacets) ? currentTheme : 'root',
+            filterTerms: [],
+            sidebarPhotosQuery: query,
+            pathname: (hasTheme && !hasGeographicFacets) ? `/themes/${currentTheme}` : '/maps',
+            hash: '#mapview=counties',
+            timeRange: [193501, 194406],
+            selectedViz: (hasTheme && !hasGeographicFacets) ? 'themes' : 'map',
+            sidebarPhotosOffset: 0
+          }
+        });
+        dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+      }
+    } catch (error) {
+      console.error('Error fetching random photos:', error);
+    }
   };
 
-  const handleCitiesClick = () => {
+  const handleCitiesClick = async () => {
     // If we have a theme selected, retain it
     const hasTheme = currentTheme && currentTheme !== 'root';
 
-    // Always reset to zoomed out city view and clear geographic facets
-    dispatch({
-      type: 'SET_STATE',
-      payload: {
-        selectedMapView: 'cities',
-        selectedCounty: null,
-        selectedCity: null,
-        selectedState: null,
-        selectedTheme: hasTheme ? currentTheme : 'root',
-        filterTerms: [],
-        sidebarPhotosQuery: 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000',
-        pathname: hasTheme ? `/themes/${currentTheme}` : '/maps',
-        hash: null,
-        timeRange: [193501, 194406],
-        selectedViz: 'map',
-        sidebarPhotosOffset: 0
-      }
-    });
+    try {
+      // Fetch random photos first
+      const query = 'SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000';
+      const response = await fetch(cartoURLBase + encodeURIComponent(query));
+      const data = await response.json();
 
-    // Fetch random photos
-    fetch('https://digitalscholarshiplab.cartodb.com/api/v2/sql?format=JSON&q=' + 
-      encodeURIComponent('SELECT * FROM photogrammar_photos ORDER BY random() LIMIT 1000'))
-      .then(response => response.json())
-      .then(data => {
-        if (data.rows) {
-          dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
-        }
-      })
-      .catch(error => console.error('Error fetching random photos:', error));
+      if (data.rows) {
+        // Update state and photos together
+        dispatch({
+          type: 'SET_STATE',
+          payload: {
+            selectedMapView: 'cities',
+            previousMapView: selectedMapView,  // Include previous view type
+            selectedCounty: null,
+            selectedCity: null,
+            selectedState: null,
+            selectedTheme: hasTheme ? currentTheme : 'root',
+            filterTerms: [],
+            sidebarPhotosQuery: query,
+            pathname: hasTheme ? `/themes/${currentTheme}` : '/maps',
+            hash: '#mapview=cities',
+            timeRange: [193501, 194406],
+            selectedViz: 'map',
+            sidebarPhotosOffset: 0,
+            sidebarPhotos: []
+          }
+        });
+        dispatch({ type: 'SET_SIDEBAR_PHOTOS', payload: data.rows });
+      }
+    } catch (error) {
+      console.error('Error fetching random photos:', error);
+    }
   };
 
   const handleThemesClick = (e: React.MouseEvent) => {
